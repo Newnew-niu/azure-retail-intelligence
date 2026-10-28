@@ -6,6 +6,8 @@ is safe. Batches are split on 'GO' lines, as in SSMS and sqlcmd.
 
 Local LocalDB only: the database is created if it does not exist, and --reset
 drops and recreates it (refused for any non-local server).
+Azure SQL only: when AZURE_DATA_FACTORY is set, the factory's managed identity is
+given a database user with least-privilege grants (sql/security/adf_access.sql).
 
 Usage:
     python scripts/deploy_sql.py [--reset]
@@ -13,6 +15,7 @@ Usage:
 from __future__ import annotations
 
 import argparse
+import os
 import re
 import sys
 from pathlib import Path
@@ -24,6 +27,7 @@ from ingestion import db  # noqa: E402
 
 SQL_DIR = PROJECT_ROOT / "sql"
 MANIFEST = SQL_DIR / "deploy_manifest.txt"
+ADF_ACCESS_SCRIPT = SQL_DIR / "security" / "adf_access.sql"
 GO_LINE = re.compile(r"^\s*GO\s*$", re.IGNORECASE | re.MULTILINE)
 
 
@@ -60,6 +64,13 @@ def deploy() -> None:
             print(f"  deployed {path.relative_to(SQL_DIR)} ({len(batches)} batch(es))")
 
 
+def grant_adf_access(factory_name: str) -> None:
+    """Create the Data Factory managed-identity user and its grants (Azure SQL only)."""
+    with db.connect(autocommit=True) as conn:
+        conn.execute(ADF_ACCESS_SCRIPT.read_text(encoding="utf-8"), factory_name)
+    print(f"  granted raw/stg/ops access to managed identity {factory_name}")
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="Deploy SQL scripts listed in sql/deploy_manifest.txt")
     parser.add_argument("--reset", action="store_true", help="LOCAL ONLY: drop and recreate the database first")
@@ -72,6 +83,9 @@ def main() -> int:
         return 2
     print(f"Deploying to database '{db.database_name()}' ...")
     deploy()
+    factory = os.getenv("AZURE_DATA_FACTORY")
+    if not db.is_local() and factory:
+        grant_adf_access(factory)
     print("Done.")
     return 0
 

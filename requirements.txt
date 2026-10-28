@@ -4,3 +4,6 @@ pyodbc==5.2.0
 PyYAML==6.0.2
 python-dotenv==1.1.0
 pytest==8.3.5
+# Azure (Stage 3): Entra ID tokens from `az login`, ADLS Gen2 upload
+azure-identity==1.27.0
+azure-storage-file-datalake==12.26.0
