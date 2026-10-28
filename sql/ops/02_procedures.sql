@@ -68,3 +68,29 @@ BEGIN
      WHERE step_id = @step_id;
 END;
 GO
+
+/*
+    One-call step log for ADF Copy activities. A Stored Procedure activity cannot read an
+    OUTPUT parameter, so ADF cannot use usp_step_start/usp_step_end around a Copy; instead it
+    logs the finished copy once, with the counts and duration from the Copy activity output.
+*/
+CREATE OR ALTER PROCEDURE ops.usp_log_copy
+    @run_id           NVARCHAR(100),
+    @step_name        NVARCHAR(200),
+    @target_object    NVARCHAR(200),
+    @status           NVARCHAR(20),
+    @rows_read        INT = NULL,
+    @rows_written     INT = NULL,
+    @duration_seconds INT = NULL,
+    @error_message    NVARCHAR(4000) = NULL
+AS
+BEGIN
+    SET NOCOUNT ON;
+    DECLARE @ended DATETIME2(3) = SYSUTCDATETIME();
+    INSERT ops.step_log (run_id, step_name, target_object, status, rows_read, rows_written, rows_rejected,
+                         started_at_utc, ended_at_utc, error_message)
+    VALUES (@run_id, @step_name, @target_object, @status, @rows_read, @rows_written,
+            @rows_read - @rows_written,  -- rows the copy skipped (0 unless fault tolerance is enabled)
+            DATEADD(SECOND, -ISNULL(@duration_seconds, 0), @ended), @ended, @error_message);
+END;
+GO

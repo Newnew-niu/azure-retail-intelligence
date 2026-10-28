@@ -1,0 +1,14 @@
+{
+  "name": "ls_azure_sql",
+  "properties": {
+    "description": "Azure SQL Database. Authenticates with the factory's system-assigned managed identity (database user created by sql/security/adf_access.sql); no password.",
+    "type": "AzureSqlDatabase",
+    "typeProperties": {
+      "server": "{{AZURE_SQL_SERVER}}",
+      "database": "{{SQL_DATABASE}}",
+      "encrypt": "mandatory",
+      "trustServerCertificate": false,
+      "authenticationType": "SystemAssignedManagedIdentity"
+    }
+  }
+}

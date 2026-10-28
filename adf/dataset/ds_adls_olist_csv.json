@@ -1,0 +1,27 @@
+{
+  "name": "ds_adls_olist_csv",
+  "properties": {
+    "description": "One Olist CSV file in the raw zone. The files quote fields with \" and escape a quote by doubling it (\"\"), so escapeChar is also \" - the ADF default (backslash) would split review texts.",
+    "linkedServiceName": { "referenceName": "ls_adls", "type": "LinkedServiceReference" },
+    "parameters": {
+      "directory": { "type": "string" },
+      "file_name": { "type": "string" }
+    },
+    "type": "DelimitedText",
+    "typeProperties": {
+      "location": {
+        "type": "AzureBlobFSLocation",
+        "fileSystem": "raw",
+        "folderPath": { "value": "@dataset().directory", "type": "Expression" },
+        "fileName": { "value": "@dataset().file_name", "type": "Expression" }
+      },
+      "columnDelimiter": ",",
+      "encodingName": "UTF-8",
+      "quoteChar": "\"",
+      "escapeChar": "\"",
+      "firstRowAsHeader": true,
+      "nullValue": ""
+    },
+    "schema": []
+  }
+}

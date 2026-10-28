@@ -1,0 +1,17 @@
+{
+  "name": "ds_sql_table",
+  "properties": {
+    "description": "Any table in the project database, chosen by parameters.",
+    "linkedServiceName": { "referenceName": "ls_azure_sql", "type": "LinkedServiceReference" },
+    "parameters": {
+      "schema_name": { "type": "string" },
+      "table_name": { "type": "string" }
+    },
+    "type": "AzureSqlTable",
+    "typeProperties": {
+      "schema": { "value": "@dataset().schema_name", "type": "Expression" },
+      "table": { "value": "@dataset().table_name", "type": "Expression" }
+    },
+    "schema": []
+  }
+}

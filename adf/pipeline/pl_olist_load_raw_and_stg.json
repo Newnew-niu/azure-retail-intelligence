@@ -1,0 +1,204 @@
+{
+  "name": "pl_olist_load_raw_and_stg",
+  "properties": {
+    "description": "Child of pl_olist_master. 0) Stop unless the batch has a validation report. 1) Copy each validated CSV of one batch from ADLS into its raw.* table (pre-copy DELETE of the same batch makes reruns idempotent), logging each copy to ops.step_log. 2) Run the staging procedures in dependency order; they log their own steps and rejects.",
+    "parameters": {
+      "run_id": { "type": "string" },
+      "batch_id": { "type": "string", "defaultValue": "full_load" },
+      "entities": {
+        "type": "array",
+        "defaultValue": [
+          { "entity": "customers", "file": "olist_customers_dataset.csv" },
+          { "entity": "geolocation", "file": "olist_geolocation_dataset.csv" },
+          { "entity": "orders", "file": "olist_orders_dataset.csv" },
+          { "entity": "order_items", "file": "olist_order_items_dataset.csv" },
+          { "entity": "order_payments", "file": "olist_order_payments_dataset.csv" },
+          { "entity": "order_reviews", "file": "olist_order_reviews_dataset.csv" },
+          { "entity": "products", "file": "olist_products_dataset.csv" },
+          { "entity": "sellers", "file": "olist_sellers_dataset.csv" },
+          { "entity": "product_category_translation", "file": "product_category_name_translation.csv" }
+        ]
+      },
+      "staging_procedures": {
+        "type": "array",
+        "defaultValue": [
+          "stg.usp_load_customers",
+          "stg.usp_load_sellers",
+          "stg.usp_load_product_category_translation",
+          "stg.usp_load_products",
+          "stg.usp_load_orders",
+          "stg.usp_load_order_items",
+          "stg.usp_load_order_payments",
+          "stg.usp_load_order_reviews",
+          "stg.usp_load_geolocation"
+        ]
+      }
+    },
+    "activities": [
+      {
+        "name": "CheckBatchValidated",
+        "description": "ingestion/upload_to_adls.py writes _validation_report.json only after every file passed validation; without it the batch is not loaded.",
+        "type": "GetMetadata",
+        "typeProperties": {
+          "dataset": {
+            "referenceName": "ds_adls_olist_csv",
+            "type": "DatasetReference",
+            "parameters": {
+              "directory": { "value": "olist/batch_id=@{pipeline().parameters.batch_id}", "type": "Expression" },
+              "file_name": "_validation_report.json"
+            }
+          },
+          "fieldList": [ "exists" ]
+        }
+      },
+      {
+        "name": "IfBatchNotValidated",
+        "type": "IfCondition",
+        "dependsOn": [ { "activity": "CheckBatchValidated", "dependencyConditions": [ "Succeeded" ] } ],
+        "typeProperties": {
+          "expression": { "value": "@not(activity('CheckBatchValidated').output.exists)", "type": "Expression" },
+          "ifTrueActivities": [
+            {
+              "name": "FailBatchNotValidated",
+              "type": "Fail",
+              "typeProperties": {
+                "message": { "value": "Batch @{pipeline().parameters.batch_id} has no _validation_report.json in raw/olist/batch_id=@{pipeline().parameters.batch_id}; upload it with ingestion/upload_to_adls.py", "type": "Expression" },
+                "errorCode": "BATCH_NOT_VALIDATED"
+              }
+            }
+          ]
+        }
+      },
+      {
+        "name": "ForEachEntityCopyToRaw",
+        "type": "ForEach",
+        "dependsOn": [ { "activity": "IfBatchNotValidated", "dependencyConditions": [ "Succeeded" ] } ],
+        "typeProperties": {
+          "items": { "value": "@pipeline().parameters.entities", "type": "Expression" },
+          "isSequential": false,
+          "batchCount": 4,
+          "activities": [
+            {
+              "name": "CopyCsvToRaw",
+              "type": "Copy",
+              "policy": { "timeout": "0.01:00:00", "retry": 1, "retryIntervalInSeconds": 60 },
+              "inputs": [
+                {
+                  "referenceName": "ds_adls_olist_csv",
+                  "type": "DatasetReference",
+                  "parameters": {
+                    "directory": { "value": "olist/batch_id=@{pipeline().parameters.batch_id}", "type": "Expression" },
+                    "file_name": { "value": "@item().file", "type": "Expression" }
+                  }
+                }
+              ],
+              "outputs": [
+                {
+                  "referenceName": "ds_sql_table",
+                  "type": "DatasetReference",
+                  "parameters": {
+                    "schema_name": "raw",
+                    "table_name": { "value": "@item().entity", "type": "Expression" }
+                  }
+                }
+              ],
+              "typeProperties": {
+                "source": {
+                  "type": "DelimitedTextSource",
+                  "storeSettings": { "type": "AzureBlobFSReadSettings", "recursive": false },
+                  "formatSettings": { "type": "DelimitedTextReadSettings" },
+                  "additionalColumns": [
+                    { "name": "batch_id", "value": { "value": "@pipeline().parameters.batch_id", "type": "Expression" } },
+                    { "name": "source_file", "value": "$$FILEPATH" },
+                    { "name": "run_id", "value": { "value": "@pipeline().parameters.run_id", "type": "Expression" } }
+                  ]
+                },
+                "sink": {
+                  "type": "AzureSqlSink",
+                  "writeBehavior": "insert",
+                  "preCopyScript": {
+                    "value": "DELETE FROM raw.@{item().entity} WHERE batch_id = N'@{pipeline().parameters.batch_id}'",
+                    "type": "Expression"
+                  },
+                  "tableOption": "none"
+                },
+                "enableStaging": false,
+                "dataIntegrationUnits": 2
+              }
+            },
+            {
+              "name": "LogCopySucceeded",
+              "type": "SqlServerStoredProcedure",
+              "dependsOn": [ { "activity": "CopyCsvToRaw", "dependencyConditions": [ "Succeeded" ] } ],
+              "linkedServiceName": { "referenceName": "ls_azure_sql", "type": "LinkedServiceReference" },
+              "typeProperties": {
+                "storedProcedureName": "ops.usp_log_copy",
+                "storedProcedureParameters": {
+                  "run_id": { "value": { "value": "@pipeline().parameters.run_id", "type": "Expression" }, "type": "String" },
+                  "step_name": { "value": "adf.copy_to_raw", "type": "String" },
+                  "target_object": { "value": { "value": "raw.@{item().entity}", "type": "Expression" }, "type": "String" },
+                  "status": { "value": "SUCCEEDED", "type": "String" },
+                  "rows_read": { "value": { "value": "@activity('CopyCsvToRaw').output.rowsRead", "type": "Expression" }, "type": "Int32" },
+                  "rows_written": { "value": { "value": "@activity('CopyCsvToRaw').output.rowsCopied", "type": "Expression" }, "type": "Int32" },
+                  "duration_seconds": { "value": { "value": "@activity('CopyCsvToRaw').output.copyDuration", "type": "Expression" }, "type": "Int32" }
+                }
+              }
+            },
+            {
+              "name": "LogCopyFailed",
+              "type": "SqlServerStoredProcedure",
+              "dependsOn": [ { "activity": "CopyCsvToRaw", "dependencyConditions": [ "Failed" ] } ],
+              "linkedServiceName": { "referenceName": "ls_azure_sql", "type": "LinkedServiceReference" },
+              "typeProperties": {
+                "storedProcedureName": "ops.usp_log_copy",
+                "storedProcedureParameters": {
+                  "run_id": { "value": { "value": "@pipeline().parameters.run_id", "type": "Expression" }, "type": "String" },
+                  "step_name": { "value": "adf.copy_to_raw", "type": "String" },
+                  "target_object": { "value": { "value": "raw.@{item().entity}", "type": "Expression" }, "type": "String" },
+                  "status": { "value": "FAILED", "type": "String" },
+                  "error_message": {
+                    "value": { "value": "@substring(activity('CopyCsvToRaw').error.message, 0, min(4000, length(activity('CopyCsvToRaw').error.message)))", "type": "Expression" },
+                    "type": "String"
+                  }
+                }
+              }
+            },
+            {
+              "name": "FailEntity",
+              "type": "Fail",
+              "dependsOn": [ { "activity": "LogCopyFailed", "dependencyConditions": [ "Completed" ] } ],
+              "typeProperties": {
+                "message": { "value": "Copy of @{item().file} into raw.@{item().entity} failed; see ops.step_log", "type": "Expression" },
+                "errorCode": "COPY_TO_RAW_FAILED"
+              }
+            }
+          ]
+        }
+      },
+      {
+        "name": "ForEachStagingProcedure",
+        "type": "ForEach",
+        "dependsOn": [ { "activity": "ForEachEntityCopyToRaw", "dependencyConditions": [ "Succeeded" ] } ],
+        "typeProperties": {
+          "items": { "value": "@pipeline().parameters.staging_procedures", "type": "Expression" },
+          "isSequential": true,
+          "activities": [
+            {
+              "name": "RunStagingProcedure",
+              "type": "SqlServerStoredProcedure",
+              "policy": { "timeout": "0.00:30:00", "retry": 0 },
+              "linkedServiceName": { "referenceName": "ls_azure_sql", "type": "LinkedServiceReference" },
+              "typeProperties": {
+                "storedProcedureName": { "value": "@item()", "type": "Expression" },
+                "storedProcedureParameters": {
+                  "run_id": { "value": { "value": "@pipeline().parameters.run_id", "type": "Expression" }, "type": "String" },
+                  "batch_id": { "value": { "value": "@pipeline().parameters.batch_id", "type": "Expression" }, "type": "String" }
+                }
+              }
+            }
+          ]
+        }
+      }
+    ]
+  }
+}

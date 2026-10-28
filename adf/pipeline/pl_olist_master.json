@@ -1,0 +1,78 @@
+{
+  "name": "pl_olist_master",
+  "properties": {
+    "description": "Entry point. Registers the run in ops.pipeline_run (run_id = ADF pipeline run ID), runs the load as a child pipeline, and records SUCCEEDED or FAILED. On failure it logs the error and then fails itself, so the ADF monitor and ops.pipeline_run always agree.",
+    "parameters": {
+      "batch_id": { "type": "string", "defaultValue": "full_load" }
+    },
+    "activities": [
+      {
+        "name": "RunStart",
+        "type": "SqlServerStoredProcedure",
+        "linkedServiceName": { "referenceName": "ls_azure_sql", "type": "LinkedServiceReference" },
+        "policy": { "timeout": "0.00:10:00", "retry": 2, "retryIntervalInSeconds": 60 },
+        "typeProperties": {
+          "storedProcedureName": "ops.usp_run_start",
+          "storedProcedureParameters": {
+            "run_id": { "value": { "value": "@pipeline().RunId", "type": "Expression" }, "type": "String" },
+            "pipeline_name": { "value": { "value": "@pipeline().Pipeline", "type": "Expression" }, "type": "String" },
+            "batch_id": { "value": { "value": "@pipeline().parameters.batch_id", "type": "Expression" }, "type": "String" },
+            "trigger_source": { "value": "adf", "type": "String" }
+          }
+        }
+      },
+      {
+        "name": "LoadRawAndStaging",
+        "type": "ExecutePipeline",
+        "dependsOn": [ { "activity": "RunStart", "dependencyConditions": [ "Succeeded" ] } ],
+        "typeProperties": {
+          "pipeline": { "referenceName": "pl_olist_load_raw_and_stg", "type": "PipelineReference" },
+          "waitOnCompletion": true,
+          "parameters": {
+            "run_id": { "value": "@pipeline().RunId", "type": "Expression" },
+            "batch_id": { "value": "@pipeline().parameters.batch_id", "type": "Expression" }
+          }
+        }
+      },
+      {
+        "name": "RunSucceeded",
+        "type": "SqlServerStoredProcedure",
+        "dependsOn": [ { "activity": "LoadRawAndStaging", "dependencyConditions": [ "Succeeded" ] } ],
+        "linkedServiceName": { "referenceName": "ls_azure_sql", "type": "LinkedServiceReference" },
+        "typeProperties": {
+          "storedProcedureName": "ops.usp_run_end",
+          "storedProcedureParameters": {
+            "run_id": { "value": { "value": "@pipeline().RunId", "type": "Expression" }, "type": "String" },
+            "status": { "value": "SUCCEEDED", "type": "String" }
+          }
+        }
+      },
+      {
+        "name": "RunFailed",
+        "type": "SqlServerStoredProcedure",
+        "dependsOn": [ { "activity": "LoadRawAndStaging", "dependencyConditions": [ "Failed" ] } ],
+        "linkedServiceName": { "referenceName": "ls_azure_sql", "type": "LinkedServiceReference" },
+        "typeProperties": {
+          "storedProcedureName": "ops.usp_run_end",
+          "storedProcedureParameters": {
+            "run_id": { "value": { "value": "@pipeline().RunId", "type": "Expression" }, "type": "String" },
+            "status": { "value": "FAILED", "type": "String" },
+            "error_message": {
+              "value": { "value": "@substring(activity('LoadRawAndStaging').error.message, 0, min(4000, length(activity('LoadRawAndStaging').error.message)))", "type": "Expression" },
+              "type": "String"
+            }
+          }
+        }
+      },
+      {
+        "name": "FailPipeline",
+        "type": "Fail",
+        "dependsOn": [ { "activity": "RunFailed", "dependencyConditions": [ "Completed" ] } ],
+        "typeProperties": {
+          "message": { "value": "Load of batch @{pipeline().parameters.batch_id} failed; see ops.pipeline_run and ops.step_log for run @{pipeline().RunId}", "type": "Expression" },
+          "errorCode": "OLIST_LOAD_FAILED"
+        }
+      }
+    ]
+  }
+}

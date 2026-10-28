@@ -1,0 +1,10 @@
+{
+  "name": "ls_adls",
+  "properties": {
+    "description": "ADLS Gen2 data lake. No credential is stored: with only a URL, ADF authenticates with its system-assigned managed identity (Storage Blob Data Reader on the account).",
+    "type": "AzureBlobFS",
+    "typeProperties": {
+      "url": "https://{{AZURE_STORAGE_ACCOUNT}}.dfs.core.windows.net/"
+    }
+  }
+}
