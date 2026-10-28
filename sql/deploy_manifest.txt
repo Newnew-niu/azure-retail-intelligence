@@ -1,0 +1,17 @@
+# Deployment order for scripts/deploy_sql.py (paths relative to sql/).
+# Every script is re-runnable.
+database_setup.sql
+ops/01_tables.sql
+ops/02_procedures.sql
+raw/01_tables.sql
+staging/01_tables.sql
+staging/02_functions.sql
+staging/usp_load_orders.sql
+staging/usp_load_customers.sql
+staging/usp_load_sellers.sql
+staging/usp_load_product_category_translation.sql
+staging/usp_load_products.sql
+staging/usp_load_order_items.sql
+staging/usp_load_order_payments.sql
+staging/usp_load_order_reviews.sql
+staging/usp_load_geolocation.sql
