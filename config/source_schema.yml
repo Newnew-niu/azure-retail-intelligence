@@ -1,0 +1,123 @@
+# Source file contract for the Olist Brazilian E-Commerce dataset.
+#
+# This file is the single definition of what a valid source file looks like.
+# ingestion/validate_files.py enforces it before anything is uploaded to the cloud.
+#
+# Scope: FILE-LEVEL checks only (presence, encoding, header, required values,
+# parseable types, simple formats). Cross-table rules such as referential
+# integrity, key uniqueness and business rules are checked in SQL (sql/quality/),
+# where the data can be joined - they are deliberately not duplicated here.
+#
+# Column types:  string | integer | decimal | timestamp
+#   timestamp = 'YYYY-MM-DD HH:MM:SS', no time zone in source (assumed Brazil local time)
+# required: true  -> empty values are an ERROR
+# pattern         -> regular expression every non-empty value must fully match
+#
+# Column names are kept exactly as published, including the source typos
+# 'product_name_lenght' / 'product_description_lenght'; they are renamed in staging.
+
+defaults:
+  encoding: utf-8          # a UTF-8 byte-order mark is tolerated
+  delimiter: ","
+  timestamp_format: "%Y-%m-%d %H:%M:%S"
+
+entities:
+  customers:
+    file: olist_customers_dataset.csv
+    min_rows: 1
+    columns:
+      - {name: customer_id,              type: string, required: true}
+      - {name: customer_unique_id,       type: string, required: true}
+      - {name: customer_zip_code_prefix, type: string, required: true, pattern: '\d{5}'}
+      - {name: customer_city,            type: string, required: true}
+      - {name: customer_state,           type: string, required: true, pattern: '[A-Z]{2}'}
+
+  geolocation:
+    file: olist_geolocation_dataset.csv
+    min_rows: 1
+    columns:
+      - {name: geolocation_zip_code_prefix, type: string,  required: true, pattern: '\d{5}'}
+      - {name: geolocation_lat,             type: decimal, required: true}
+      - {name: geolocation_lng,             type: decimal, required: true}
+      - {name: geolocation_city,            type: string,  required: true}
+      - {name: geolocation_state,           type: string,  required: true, pattern: '[A-Z]{2}'}
+
+  orders:
+    file: olist_orders_dataset.csv
+    min_rows: 1
+    columns:
+      - {name: order_id,                      type: string,    required: true}
+      - {name: customer_id,                   type: string,    required: true}
+      - {name: order_status,                  type: string,    required: true}
+      - {name: order_purchase_timestamp,      type: timestamp, required: true}
+      # Empty when the order never reached that stage (e.g. cancelled before approval)
+      - {name: order_approved_at,             type: timestamp, required: false}
+      - {name: order_delivered_carrier_date,  type: timestamp, required: false}
+      - {name: order_delivered_customer_date, type: timestamp, required: false}
+      - {name: order_estimated_delivery_date, type: timestamp, required: true}
+
+  order_items:
+    file: olist_order_items_dataset.csv
+    min_rows: 1
+    columns:
+      - {name: order_id,            type: string,    required: true}
+      - {name: order_item_id,       type: integer,   required: true}
+      - {name: product_id,          type: string,    required: true}
+      - {name: seller_id,           type: string,    required: true}
+      - {name: shipping_limit_date, type: timestamp, required: true}
+      - {name: price,               type: decimal,   required: true}
+      - {name: freight_value,       type: decimal,   required: true}
+
+  order_payments:
+    file: olist_order_payments_dataset.csv
+    min_rows: 1
+    columns:
+      - {name: order_id,             type: string,  required: true}
+      - {name: payment_sequential,   type: integer, required: true}
+      - {name: payment_type,         type: string,  required: true}
+      - {name: payment_installments, type: integer, required: true}
+      - {name: payment_value,        type: decimal, required: true}
+
+  order_reviews:
+    file: olist_order_reviews_dataset.csv
+    min_rows: 1
+    columns:
+      - {name: review_id,               type: string,    required: true}
+      - {name: order_id,                type: string,    required: true}
+      - {name: review_score,            type: integer,   required: true}
+      # Free text, optional, may contain line breaks inside quotes
+      - {name: review_comment_title,    type: string,    required: false}
+      - {name: review_comment_message,  type: string,    required: false}
+      - {name: review_creation_date,    type: timestamp, required: true}
+      - {name: review_answer_timestamp, type: timestamp, required: true}
+
+  products:
+    file: olist_products_dataset.csv
+    min_rows: 1
+    columns:
+      - {name: product_id,                 type: string,  required: true}
+      # 610 products have no category or listing attributes in the source
+      - {name: product_category_name,      type: string,  required: false}
+      - {name: product_name_lenght,        type: integer, required: false}
+      - {name: product_description_lenght, type: integer, required: false}
+      - {name: product_photos_qty,         type: integer, required: false}
+      - {name: product_weight_g,           type: integer, required: false}
+      - {name: product_length_cm,          type: integer, required: false}
+      - {name: product_height_cm,          type: integer, required: false}
+      - {name: product_width_cm,           type: integer, required: false}
+
+  sellers:
+    file: olist_sellers_dataset.csv
+    min_rows: 1
+    columns:
+      - {name: seller_id,              type: string, required: true}
+      - {name: seller_zip_code_prefix, type: string, required: true, pattern: '\d{5}'}
+      - {name: seller_city,            type: string, required: true}
+      - {name: seller_state,           type: string, required: true, pattern: '[A-Z]{2}'}
+
+  product_category_translation:
+    file: product_category_name_translation.csv
+    min_rows: 1
+    columns:
+      - {name: product_category_name,         type: string, required: true}
+      - {name: product_category_name_english, type: string, required: true}

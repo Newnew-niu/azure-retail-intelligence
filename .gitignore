@@ -1,0 +1,28 @@
+# Python
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# Secrets and local configuration - never commit
+.env
+*.publishsettings
+local.settings.json
+
+# Source data (licensed CC BY-NC-SA 4.0; downloaded by scripts/download_data.py)
+data/raw/*
+!data/raw/.gitkeep
+data/batches/
+
+# Generated logs and reports
+logs/
+
+# Power BI temp/backup files (the .pbix itself IS committed)
+*.pbix.bak
+~$*
+
+# OS / editors
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
