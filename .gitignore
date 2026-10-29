@@ -30,3 +30,7 @@ Thumbs.db
 # Power BI project: local settings and the imported-data cache are not source
 powerbi/**/.pbi/localSettings.json
 powerbi/**/.pbi/cache.abf
+
+# Personal files kept locally, not part of the published project
+docs/interview_notes.md
+powerbi/**/.pbi/editorSettings.json
