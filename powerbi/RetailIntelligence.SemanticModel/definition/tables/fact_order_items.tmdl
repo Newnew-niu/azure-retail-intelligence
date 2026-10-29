@@ -79,18 +79,26 @@ table fact_order_items
 		sourceColumn: order_status
 
 	column price
-		dataType: decimal
+		dataType: double
 		isHidden
 		lineageTag: d7f9270c-430c-55e4-8d22-b0d20438a000
-		summarizeBy: none
+		summarizeBy: sum
 		sourceColumn: price
 
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
 	column freight_value
-		dataType: decimal
+		dataType: double
 		isHidden
 		lineageTag: da57e9fe-0636-5af3-b977-6cfb81bc94eb
-		summarizeBy: none
+		summarizeBy: sum
 		sourceColumn: freight_value
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
 
 	partition fact_order_items = m
 		mode: import
@@ -101,3 +109,4 @@ table fact_order_items
 				    Selected = Table.SelectColumns(Data, {"order_id", "order_item_id", "product_key", "seller_key", "customer_key", "purchase_date_key", "order_status", "price", "freight_value"})
 				in
 				    Selected
+

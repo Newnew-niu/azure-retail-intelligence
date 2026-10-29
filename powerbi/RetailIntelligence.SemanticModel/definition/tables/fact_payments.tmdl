@@ -66,11 +66,15 @@ table fact_payments
 		sourceColumn: payment_installments
 
 	column payment_value
-		dataType: decimal
+		dataType: double
 		isHidden
 		lineageTag: 9256542e-7fc0-5374-917f-9d77f03766e5
-		summarizeBy: none
+		summarizeBy: sum
 		sourceColumn: payment_value
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
 
 	partition fact_payments = m
 		mode: import
@@ -81,3 +85,4 @@ table fact_payments
 				    Selected = Table.SelectColumns(Data, {"order_id", "payment_sequential", "customer_key", "purchase_date_key", "order_status", "payment_type", "payment_installments", "payment_value"})
 				in
 				    Selected
+

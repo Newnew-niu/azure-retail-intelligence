@@ -11,11 +11,14 @@ dashboard reconciles back to the source data to the cent.
 ![Python](https://img.shields.io/badge/Python-3.10-3776AB?logo=python&logoColor=white)
 ![SQL](https://img.shields.io/badge/T--SQL-star_schema-CC2927?logo=microsoftsqlserver&logoColor=white)
 ![Power BI](https://img.shields.io/badge/Power_BI-DAX-F2C811?logo=powerbi&logoColor=black)
-![Tests](https://img.shields.io/badge/tests-119_passing-2EA44F)
+![Tests](https://img.shields.io/badge/tests-125_passing-2EA44F)
+
+### 👉 [Open the live interactive dashboard](https://newnew-niu.github.io/azure-retail-intelligence/)
+*Filter by month and state in your browser – no Power BI or sign-in needed.*
 
 ![Sales Performance dashboard](docs/images/sales.jpeg)
 
-| 📦 **1.55 M** raw rows from 9 source files | ✅ **119** automated tests, **28** data quality checks per run | 🎯 Reconciled **to the cent** from CSV to dashboard | 💶 Built and run for **under €1** (estimated) |
+| 📦 **1.55 M** raw rows from 9 source files | ✅ **125** automated tests, **28** data quality checks per run | 🎯 Reconciled **to the cent** from CSV to dashboard | 💶 Built and run for **under €1** (estimated) |
 |:-:|:-:|:-:|:-:|
 
 ---
@@ -65,6 +68,11 @@ database accepts Microsoft Entra ID only.
 | **Delivery and Operations** | Delivery time, late-delivery rate by month and state, review scores by delivery outcome |
 | **Customer and Product Insights** | Repeat customers, category price and volume, payment methods |
 
+The report is built in **Power BI** (screenshots below). Because publishing a public Power BI link needs
+an organisational licence, the same three pages also exist as a **[web dashboard](https://newnew-niu.github.io/azure-retail-intelligence/)** (static HTML +
+ECharts on GitHub Pages) that uses the same KPI definitions; automated tests check that its numbers equal
+SQL and the Power BI cards.
+
 <details>
 <summary><b>See the other two pages</b></summary>
 
@@ -87,7 +95,8 @@ an association, not proof of cause.
 - **Incremental = full** – the data was replayed as 9 *simulated* monthly batches; loading them one by
   one gives exactly the same warehouse as one full load (0 differing rows across 22 tables and views).
 - **Cloud = local** – all business views are identical in Azure SQL and in the local test database.
-- **Dashboard = SQL** – every card on the dashboard was checked against a value computed independently in SQL.
+- **Dashboard = SQL** – every Power BI card was checked against a value computed independently in SQL, and
+  automated tests compare the web dashboard's calculations with SQL for the full period and a filtered slice.
 
 ## Tech stack
 
@@ -96,8 +105,8 @@ an association, not proof of cause.
 | Cloud | Azure Data Factory, Azure Data Lake Storage Gen2, Azure SQL Database (serverless, free offer), Microsoft Entra ID, managed identity |
 | Data | T-SQL stored procedures, star schema, incremental loads with watermarks, data quality checks |
 | Code | Python (pandas, pytest, Azure SDK), Bash + Azure CLI for provisioning |
-| Reporting | Power BI (DAX, semantic model generated as code) |
-| Engineering | Git/GitHub, 119 automated tests, SQL Server LocalDB for local development |
+| Reporting | Power BI (DAX, semantic model generated as code); web dashboard (HTML, JavaScript, ECharts) |
+| Engineering | Git/GitHub, GitHub Actions + Pages, 125 automated tests, SQL Server LocalDB for local development |
 
 ---
 
@@ -130,7 +139,7 @@ cp .env.example .env
 python scripts/download_data.py          # Olist CSVs into data/raw/
 python scripts/deploy_sql.py             # create the local database
 python scripts/run_local_pipeline.py     # validate -> load -> transform -> quality checks
-python -m pytest                         # 119 tests
+python -m pytest                         # 125 tests
 ```
 
 Azure: `bash infra/provision.sh`, then follow [docs/deployment_guide.md](docs/deployment_guide.md).
@@ -148,6 +157,7 @@ adf/         Data Factory pipelines (JSON)
 infra/       create / delete the Azure resources
 scripts/     deployment, pipeline runners, batch simulation, Power BI generators
 powerbi/     Power BI project (model + report as text)
+dashboard/   web dashboard published to GitHub Pages
 tests/       automated tests
 docs/        design documentation
 ```

@@ -11,6 +11,8 @@ annotation __PBI_TimeIntelligenceEnabled = 0
 
 annotation PBI_ProTooling = ["DevMode"]
 
+annotation PBI_QueryOrder = ["dim_date","dim_customer","dim_product","dim_seller","fact_orders","fact_order_items","fact_payments","Server","Database"]
+
 ref table dim_date
 ref table dim_customer
 ref table dim_product
@@ -20,3 +22,4 @@ ref table fact_order_items
 ref table fact_payments
 
 ref cultureInfo en-GB
+

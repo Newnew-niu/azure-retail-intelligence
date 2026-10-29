@@ -18,6 +18,8 @@ table dim_date
 		summarizeBy: none
 		sourceColumn: date
 
+		annotation UnderlyingDateTimeDataType = Date
+
 	column year
 		dataType: int64
 		lineageTag: 1d66b6f1-a78b-5acb-9cea-ce6af40f8f03
@@ -39,10 +41,10 @@ table dim_date
 
 	column month_name
 		dataType: string
-		sortByColumn: month
 		lineageTag: 63bac307-e261-5c4f-a255-64777a953eec
 		summarizeBy: none
 		sourceColumn: month_name
+		sortByColumn: month
 
 	column year_month
 		dataType: string
@@ -56,6 +58,8 @@ table dim_date
 		lineageTag: eb3136cc-fa7c-5687-ac49-d57634258f8c
 		summarizeBy: none
 		sourceColumn: month_start
+
+		annotation UnderlyingDateTimeDataType = Date
 
 	column day_of_month
 		dataType: int64
@@ -72,10 +76,10 @@ table dim_date
 
 	column day_name
 		dataType: string
-		sortByColumn: day_of_week
 		lineageTag: fbd8c3b8-38c5-5a26-94db-aee6f52cc936
 		summarizeBy: none
 		sourceColumn: day_name
+		sortByColumn: day_of_week
 
 	column is_weekend
 		dataType: boolean
@@ -97,3 +101,8 @@ table dim_date
 				    Selected = Table.SelectColumns(Data, {"date_key", "date", "year", "quarter", "month", "month_name", "year_month", "month_start", "day_of_month", "day_of_week", "day_name", "is_weekend"})
 				in
 				    Selected
+
+	annotation PBI_NavigationStepName = Navigation
+
+	annotation PBI_ResultType = Table
+
