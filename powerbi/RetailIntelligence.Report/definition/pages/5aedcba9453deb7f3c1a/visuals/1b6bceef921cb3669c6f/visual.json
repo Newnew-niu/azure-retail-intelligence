@@ -1,16 +1,17 @@
 {
-  "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/visualContainer/2.14.0/schema.json",
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/visualContainer/1.0.0/schema.json",
   "name": "1b6bceef921cb3669c6f",
   "position": {
     "x": 24,
     "y": 470,
     "z": 22,
-    "height": 210,
     "width": 760,
+    "height": 210,
     "tabOrder": 22
   },
   "visual": {
     "visualType": "clusteredColumnChart",
+    "drillFilterOtherVisuals": true,
     "query": {
       "queryState": {
         "Category": {
@@ -27,8 +28,7 @@
                 }
               },
               "queryRef": "dim_customer.state",
-              "nativeQueryRef": "state",
-              "active": true
+              "nativeQueryRef": "state"
             }
           ]
         },
@@ -91,7 +91,6 @@
           }
         }
       ]
-    },
-    "drillFilterOtherVisuals": true
+    }
   }
 }

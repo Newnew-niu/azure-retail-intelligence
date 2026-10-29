@@ -54,4 +54,3 @@ table dim_product
 				    Selected = Table.SelectColumns(Data, {"product_key", "product_id", "category_name_pt", "category_name_en", "is_category_translated", "photos_qty", "weight_g"})
 				in
 				    Selected
-
