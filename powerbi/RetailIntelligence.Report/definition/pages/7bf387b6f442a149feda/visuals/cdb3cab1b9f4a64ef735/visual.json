@@ -1,17 +1,16 @@
 {
-  "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/visualContainer/1.0.0/schema.json",
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/visualContainer/2.14.0/schema.json",
   "name": "cdb3cab1b9f4a64ef735",
   "position": {
     "x": 24,
     "y": 470,
     "z": 22,
-    "width": 500,
     "height": 210,
+    "width": 500,
     "tabOrder": 22
   },
   "visual": {
     "visualType": "clusteredColumnChart",
-    "drillFilterOtherVisuals": true,
     "query": {
       "queryState": {
         "Category": {
@@ -28,7 +27,8 @@
                 }
               },
               "queryRef": "fact_orders.delivery_status",
-              "nativeQueryRef": "delivery_status"
+              "nativeQueryRef": "delivery_status",
+              "active": true
             }
           ]
         },
@@ -73,6 +73,7 @@
           }
         }
       ]
-    }
+    },
+    "drillFilterOtherVisuals": true
   }
 }

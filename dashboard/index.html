@@ -1,0 +1,197 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Olist Retail Dashboard</title>
+<meta name="description" content="Interactive sales, delivery and customer dashboard built on an Azure data pipeline (Olist e-commerce data, Jan 2017 - Aug 2018).">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect x='1' y='8' width='3' height='7' rx='1' fill='%232a78d6'/%3E%3Crect x='6' y='4' width='3' height='11' rx='1' fill='%232a78d6'/%3E%3Crect x='11' y='1' width='3' height='14' rx='1' fill='%232a78d6'/%3E%3C/svg%3E">
+<style>
+  :root {
+    color-scheme: light;
+    --page: #f4f4f2;
+    --surface-1: #fcfcfb;
+    --border: #e2e1dc;
+    --grid: #ebeae6;
+    --text-primary: #0b0b0b;
+    --text-secondary: #52514e;
+    --text-muted: #77766f;
+    --series-1: #2a78d6;
+    --accent-soft: #e6effb;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:where(:not([data-theme="light"])) {
+      color-scheme: dark;
+      --page: #111110;
+      --surface-1: #1a1a19;
+      --border: #2e2e2c;
+      --grid: #2a2a28;
+      --text-primary: #f0efec;
+      --text-secondary: #c3c2b7;
+      --text-muted: #9a998f;
+      --series-1: #3987e5;
+      --accent-soft: #1c2a3d;
+    }
+  }
+  :root[data-theme="dark"] {
+    color-scheme: dark;
+    --page: #111110;
+    --surface-1: #1a1a19;
+    --border: #2e2e2c;
+    --grid: #2a2a28;
+    --text-primary: #f0efec;
+    --text-secondary: #c3c2b7;
+    --text-muted: #9a998f;
+    --series-1: #3987e5;
+    --accent-soft: #1c2a3d;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--page); color: var(--text-primary);
+    font: 15px/1.5 "Segoe UI", system-ui, -apple-system, Roboto, Helvetica, Arial, sans-serif;
+  }
+  .wrap { max-width: 1240px; margin: 0 auto; padding: 24px 16px 40px; }
+  header h1 { margin: 0; font-size: 26px; letter-spacing: -0.01em; }
+  header p { margin: 6px 0 0; color: var(--text-secondary); max-width: 860px; }
+  header .links { margin-top: 10px; font-size: 14px; }
+  a { color: var(--series-1); }
+  .bar {
+    display: flex; flex-wrap: wrap; gap: 12px 20px; align-items: end; justify-content: space-between;
+    margin: 20px 0 16px; padding: 12px 14px; background: var(--surface-1);
+    border: 1px solid var(--border); border-radius: 10px;
+  }
+  .tabs { display: flex; gap: 4px; flex-wrap: wrap; }
+  .tabs button {
+    font: inherit; font-size: 14px; padding: 7px 14px; border-radius: 8px; cursor: pointer;
+    border: 1px solid transparent; background: transparent; color: var(--text-secondary);
+  }
+  .tabs button[aria-selected="true"] { background: var(--accent-soft); color: var(--text-primary); border-color: var(--border); font-weight: 600; }
+  .filters { display: flex; gap: 12px; flex-wrap: wrap; align-items: end; }
+  .filters label { display: flex; flex-direction: column; font-size: 12px; color: var(--text-muted); gap: 3px; }
+  select, .filters button {
+    font: inherit; font-size: 14px; padding: 6px 8px; border-radius: 6px; min-width: 96px;
+    border: 1px solid var(--border); background: var(--surface-1); color: var(--text-primary);
+  }
+  .filters button { cursor: pointer; min-width: 0; }
+  .kpis { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin-bottom: 12px; }
+  .kpi { background: var(--surface-1); border: 1px solid var(--border); border-radius: 10px; padding: 14px 16px; }
+  .kpi .value { font-size: 28px; font-weight: 650; font-variant-numeric: tabular-nums; letter-spacing: -0.01em; }
+  .kpi .label { color: var(--text-secondary); font-size: 14px; }
+  .kpi .hint { color: var(--text-muted); font-size: 12px; margin-top: 2px; }
+  .grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+  .card { background: var(--surface-1); border: 1px solid var(--border); border-radius: 10px; padding: 14px 16px; min-width: 0; }
+  .card.wide { grid-column: 1 / -1; }
+  .card h2 { margin: 0; font-size: 15px; font-weight: 600; }
+  .card .sub { margin: 2px 0 6px; color: var(--text-muted); font-size: 13px; }
+  .chart { width: 100%; height: 300px; }
+  .chart.tall { height: 460px; }
+  .note { font-size: 13px; color: var(--text-secondary); background: var(--accent-soft); border-radius: 8px; padding: 8px 10px; margin-top: 8px; }
+  .table-wrap { overflow-x: auto; }
+  .more {
+    margin-top: 10px; font: inherit; font-size: 14px; padding: 6px 12px; border-radius: 6px; cursor: pointer;
+    border: 1px solid var(--border); background: var(--surface-1); color: var(--series-1);
+  }
+  table { width: 100%; border-collapse: collapse; font-size: 14px; font-variant-numeric: tabular-nums; }
+  th, td { padding: 6px 8px; border-bottom: 1px solid var(--grid); text-align: right; white-space: nowrap; }
+  th:first-child, td:first-child { text-align: left; }
+  th { color: var(--text-secondary); font-weight: 600; }
+  tfoot td { font-weight: 650; border-top: 2px solid var(--border); }
+  [hidden] { display: none !important; }
+  footer { margin-top: 22px; color: var(--text-muted); font-size: 13px; }
+  footer p { margin: 4px 0; }
+  @media (max-width: 900px) {
+    .kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .grid { grid-template-columns: 1fr; }
+    .kpi .value { font-size: 22px; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>Olist Retail Dashboard</h1>
+    <p>Sales, delivery and customer performance of a Brazilian online marketplace, January 2017 – August 2018.
+      The numbers come from an Azure data pipeline (Data Factory → Azure SQL star schema) and match the
+      Power BI report exactly.</p>
+    <div class="links"><a href="https://github.com/Newnew-niu/azure-retail-intelligence">How it was built (GitHub)</a></div>
+  </header>
+
+  <div class="bar">
+    <div class="tabs" role="tablist" aria-label="Report pages">
+      <button role="tab" aria-selected="true" data-tab="sales">Sales Performance</button>
+      <button role="tab" aria-selected="false" data-tab="delivery">Delivery and Operations</button>
+      <button role="tab" aria-selected="false" data-tab="customers">Customer and Product Insights</button>
+    </div>
+    <div class="filters">
+      <label>From <select id="m0" aria-label="First month"></select></label>
+      <label>To <select id="m1" aria-label="Last month"></select></label>
+      <label>Customer state <select id="state" aria-label="Customer state"></select></label>
+      <button id="reset" type="button">Reset</button>
+    </div>
+  </div>
+
+  <main>
+    <section data-page="sales">
+      <div class="kpis">
+        <div class="kpi"><div class="value" id="k-productSales">–</div><div class="label">Product sales (BRL)</div><div class="hint">Item prices, excl. freight</div></div>
+        <div class="kpi"><div class="value" id="k-salesOrders">–</div><div class="label">Sales orders</div><div class="hint">Excl. canceled / unavailable</div></div>
+        <div class="kpi"><div class="value" id="k-averageOrderValue">–</div><div class="label">Average order value (BRL)</div><div class="hint">Incl. freight</div></div>
+        <div class="kpi"><div class="value" id="k-customers">–</div><div class="label">Customers</div><div class="hint">Distinct people</div></div>
+      </div>
+      <div class="grid">
+        <div class="card"><h2>Product sales by month</h2><p class="sub">BRL</p><div class="chart" id="c-salesMonth"></div></div>
+        <div class="card"><h2>Sales orders by customer state</h2><p class="sub">Top 12 states</p><div class="chart" id="c-ordersState"></div></div>
+        <div class="card wide"><h2>Product sales by category</h2><p class="sub">Top 15 categories, BRL</p><div class="chart tall" id="c-salesCategory"></div></div>
+      </div>
+    </section>
+
+    <section data-page="delivery" hidden>
+      <div class="kpis">
+        <div class="kpi"><div class="value" id="k-deliveredOrders">–</div><div class="label">Delivered orders</div></div>
+        <div class="kpi"><div class="value" id="k-avgDeliveryDays">–</div><div class="label">Average delivery days</div><div class="hint">Purchase to customer</div></div>
+        <div class="kpi"><div class="value" id="k-lateDeliveryRate">–</div><div class="label">Late delivery rate</div><div class="hint">After the promised date</div></div>
+        <div class="kpi"><div class="value" id="k-avgReviewScore">–</div><div class="label">Average review score</div><div class="hint">1 – 5, reviewed orders</div></div>
+      </div>
+      <div class="grid">
+        <div class="card"><h2>Delivered orders by month</h2><p class="sub">Orders</p><div class="chart" id="c-deliveredMonth"></div></div>
+        <div class="card"><h2>Late delivery rate by month</h2><p class="sub">Share of delivered orders</p><div class="chart" id="c-lateMonth"></div></div>
+        <div class="card"><h2>Average delivery days by customer state</h2><p class="sub">Slowest 12 states</p><div class="chart" id="c-daysState"></div></div>
+        <div class="card"><h2>Average review score by delivery outcome</h2><p class="sub">1 – 5</p><div class="chart" id="c-reviewStatus"></div>
+          <div class="note">Late orders have lower average review scores. This is an association only – it does not show that
+            lateness causes the lower score (product, seller and region are not controlled for).</div></div>
+      </div>
+    </section>
+
+    <section data-page="customers" hidden>
+      <div class="kpis">
+        <div class="kpi"><div class="value" id="k-customers2">–</div><div class="label">Customers</div><div class="hint">Distinct people</div></div>
+        <div class="kpi"><div class="value" id="k-repeatCustomerRate">–</div><div class="label">Repeat customer rate</div><div class="hint">More than one order in the period</div></div>
+        <div class="kpi"><div class="value" id="k-itemsSold">–</div><div class="label">Items sold</div></div>
+        <div class="kpi"><div class="value" id="k-avgItemPrice">–</div><div class="label">Average item price (BRL)</div></div>
+      </div>
+      <div class="grid">
+        <div class="card"><h2>Payment value share by payment type</h2><p class="sub">Share of payment value</p><div class="chart" id="c-payments"></div></div>
+        <div class="card"><h2>Customers by state</h2><p class="sub">Top 12 states, distinct people</p><div class="chart" id="c-customersState"></div></div>
+        <div class="card wide"><h2>Categories: volume, price and review score of their orders</h2>
+          <p class="sub">Sorted by product sales. Order review score = average score of the orders containing the category.</p>
+          <div class="table-wrap"><table id="t-categories">
+            <thead><tr><th>Category</th><th>Items sold</th><th>Product sales (BRL)</th><th>Avg item price</th><th>Order review score</th></tr></thead>
+            <tbody></tbody><tfoot></tfoot></table></div>
+          <button id="more" class="more" type="button"></button></div>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <p><b>Definitions.</b> Sales orders exclude canceled and unavailable orders. Customers are distinct people
+      (<code>customer_unique_id</code>), not order-level customer ids. Amounts in BRL (Brazilian real). No profit or margin
+      figures: the data has no costs.</p>
+    <p><b>Data.</b> Brazilian E-Commerce Public Dataset by Olist (Kaggle, CC BY-NC-SA 4.0). Aggregates exported from the
+      warehouse on <span id="generated">–</span> UTC; every figure is tested against SQL in the
+      <a href="https://github.com/Newnew-niu/azure-retail-intelligence">repository</a>.</p>
+  </footer>
+</div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/echarts/5.5.0/echarts.min.js"></script>
+<script type="module" src="app.js"></script>
+</body>
+</html>

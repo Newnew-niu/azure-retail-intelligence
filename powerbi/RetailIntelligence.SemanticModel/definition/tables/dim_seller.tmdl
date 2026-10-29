@@ -29,15 +29,15 @@ table dim_seller
 
 	column latitude
 		dataType: double
-		dataCategory: Latitude
 		lineageTag: 4b7889f0-34c5-592c-92af-5d752aa4adb9
+		dataCategory: Latitude
 		summarizeBy: none
 		sourceColumn: latitude
 
 	column longitude
 		dataType: double
-		dataCategory: Longitude
 		lineageTag: d8de2379-96c7-5225-b21a-9472cee3fbae
+		dataCategory: Longitude
 		summarizeBy: none
 		sourceColumn: longitude
 
@@ -50,3 +50,4 @@ table dim_seller
 				    Selected = Table.SelectColumns(Data, {"seller_key", "seller_id", "city", "state", "latitude", "longitude"})
 				in
 				    Selected
+

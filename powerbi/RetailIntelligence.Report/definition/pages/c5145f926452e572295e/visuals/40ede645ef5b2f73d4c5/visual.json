@@ -1,17 +1,16 @@
 {
-  "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/visualContainer/1.0.0/schema.json",
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/visualContainer/2.14.0/schema.json",
   "name": "40ede645ef5b2f73d4c5",
   "position": {
     "x": 800,
     "y": 206,
     "z": 21,
-    "width": 456,
     "height": 250,
+    "width": 456,
     "tabOrder": 21
   },
   "visual": {
     "visualType": "donutChart",
-    "drillFilterOtherVisuals": true,
     "query": {
       "queryState": {
         "Category": {
@@ -28,7 +27,8 @@
                 }
               },
               "queryRef": "fact_payments.payment_type",
-              "nativeQueryRef": "payment_type"
+              "nativeQueryRef": "payment_type",
+              "active": true
             }
           ]
         },
@@ -88,6 +88,7 @@
           }
         }
       ]
-    }
+    },
+    "drillFilterOtherVisuals": true
   }
 }

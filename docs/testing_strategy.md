@@ -11,7 +11,7 @@
 4. **Prove a test can fail.** Key tests were checked by deliberately breaking the code (see below).
 5. **Label the evidence.** Locally tested, cloud-tested and manually verified are reported separately.
 
-## Automated tests (119, `python -m pytest`)
+## Automated tests (125, `python -m pytest`)
 
 | File | Tests | Needs | What it proves |
 |---|---:|---|---|
@@ -21,6 +21,7 @@
 | `test_reconciliation.py` | 23 | LocalDB or Azure SQL + data | CSV = raw rows per file; staging = distinct keys − rejects; geolocation covers every zip once; price, freight and payment totals equal to the cent; mart totals = fact totals; latest run has no failed DQ check |
 | `test_adf_definitions.py` | 16 | – | ADF JSON is valid and named after its file; no credential properties, SAS tokens or hard-coded hostnames; placeholders documented; copy entities = source contract; procedure list = local runner; every reference resolves |
 | `test_powerbi_model.py` | 40 | – | Every DAX column/measure reference exists; imported columns exist in the dw DDL; relationships go dimension → fact only, facts not related; every report field exists on the right table |
+| `test_dashboard.py` | 6 | Node.js + LocalDB | The web dashboard's `metrics.js`, run on its exported data, equals independent SQL for the full period and for one state over three months; matches the Power BI card and category values; breakdowns add up to the totals |
 
 SQL tests run in a throwaway database (`retail_intelligence_test`) deployed from the scripts at the
 start of the session and dropped at the end; they are skipped automatically without LocalDB.

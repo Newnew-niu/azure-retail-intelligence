@@ -1,17 +1,16 @@
 {
-  "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/visualContainer/1.0.0/schema.json",
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/visualContainer/2.14.0/schema.json",
   "name": "e6f6780703b6f4ba76d1",
   "position": {
     "x": 800,
     "y": 206,
     "z": 21,
-    "width": 456,
     "height": 474,
+    "width": 456,
     "tabOrder": 21
   },
   "visual": {
     "visualType": "clusteredBarChart",
-    "drillFilterOtherVisuals": true,
     "query": {
       "queryState": {
         "Category": {
@@ -28,7 +27,8 @@
                 }
               },
               "queryRef": "dim_product.category_name_en",
-              "nativeQueryRef": "category_name_en"
+              "nativeQueryRef": "category_name_en",
+              "active": true
             }
           ]
         },
@@ -91,6 +91,39 @@
           }
         }
       ]
-    }
+    },
+    "drillFilterOtherVisuals": true
+  },
+  "filterConfig": {
+    "filters": [
+      {
+        "name": "0d97453f9c634ec19048",
+        "field": {
+          "Column": {
+            "Expression": {
+              "SourceRef": {
+                "Entity": "dim_product"
+              }
+            },
+            "Property": "category_name_en"
+          }
+        },
+        "type": "Categorical"
+      },
+      {
+        "name": "99269383055200a28dc9",
+        "field": {
+          "Measure": {
+            "Expression": {
+              "SourceRef": {
+                "Entity": "fact_order_items"
+              }
+            },
+            "Property": "Product Sales"
+          }
+        },
+        "type": "Advanced"
+      }
+    ]
   }
 }

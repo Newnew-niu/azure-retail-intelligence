@@ -29,3 +29,4 @@ relationship 32ba597c-d4b8-561b-8dc2-8401a8711c64
 relationship 51f15bf7-dd53-5175-9171-bc2a297d7d31
 	fromColumn: fact_payments.purchase_date_key
 	toColumn: dim_date.date_key
+

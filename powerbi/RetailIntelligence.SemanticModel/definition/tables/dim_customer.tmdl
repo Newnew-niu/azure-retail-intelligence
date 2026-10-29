@@ -42,15 +42,15 @@ table dim_customer
 
 	column latitude
 		dataType: double
-		dataCategory: Latitude
 		lineageTag: b53fe01c-4719-561a-82c7-9eb6d2084ec5
+		dataCategory: Latitude
 		summarizeBy: none
 		sourceColumn: latitude
 
 	column longitude
 		dataType: double
-		dataCategory: Longitude
 		lineageTag: 515598c1-93a6-5f19-9f05-9c4f292728bf
+		dataCategory: Longitude
 		summarizeBy: none
 		sourceColumn: longitude
 
@@ -63,3 +63,4 @@ table dim_customer
 				    Selected = Table.SelectColumns(Data, {"customer_key", "customer_id", "customer_unique_id", "zip_code_prefix", "city", "state", "latitude", "longitude"})
 				in
 				    Selected
+

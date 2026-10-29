@@ -1,11 +1,12 @@
-/// SQL server: <name>.database.windows.net (Azure SQL) or (localdb)\MSSQLLocalDB
-expression Server = "your-server.database.windows.net" meta [IsParameterQuery = true, Type = "Text", IsParameterQueryRequired = true]
+/// SQL server: Azure SQL (default) or (localdb)\MSSQLLocalDB
+expression Server = "sql-retail-intel-96106c.database.windows.net" meta [IsParameterQuery=true, Type="Text", IsParameterQueryRequired=true]
 	lineageTag: 954fd474-820e-5664-910b-46c8fce87c28
 
 	annotation PBI_ResultType = Text
 
 /// Database name
-expression Database = "retail_intelligence" meta [IsParameterQuery = true, Type = "Text", IsParameterQueryRequired = true]
+expression Database = "retail_intelligence" meta [IsParameterQuery=true, Type="Text", IsParameterQueryRequired=true]
 	lineageTag: ff24caa8-8a36-5b08-a6f2-3b0891feaeeb
 
 	annotation PBI_ResultType = Text
+

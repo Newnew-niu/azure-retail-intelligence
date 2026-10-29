@@ -133,6 +133,8 @@ table fact_orders
 		summarizeBy: none
 		sourceColumn: estimated_delivery_date
 
+		annotation UnderlyingDateTimeDataType = Date
+
 	column item_count
 		dataType: int64
 		lineageTag: f56fe2c4-0302-5131-b120-37e019249797
@@ -140,18 +142,26 @@ table fact_orders
 		sourceColumn: item_count
 
 	column items_price
-		dataType: decimal
+		dataType: double
 		isHidden
 		lineageTag: 33bfed01-e885-5de5-9e47-4b3ed657a5e2
-		summarizeBy: none
+		summarizeBy: sum
 		sourceColumn: items_price
 
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
 	column items_freight
-		dataType: decimal
+		dataType: double
 		isHidden
 		lineageTag: bf54adf1-2cd3-5ebd-931d-682d2f2ac0fd
-		summarizeBy: none
+		summarizeBy: sum
 		sourceColumn: items_freight
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
 
 	column payment_count
 		dataType: int64
@@ -161,11 +171,15 @@ table fact_orders
 		sourceColumn: payment_count
 
 	column payment_value
-		dataType: decimal
+		dataType: double
 		isHidden
 		lineageTag: 006a14e8-0ab0-5c98-b9a3-e0162009b0fb
-		summarizeBy: none
+		summarizeBy: sum
 		sourceColumn: payment_value
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
 
 	column review_count
 		dataType: int64
@@ -175,18 +189,26 @@ table fact_orders
 		sourceColumn: review_count
 
 	column review_score_avg
-		dataType: decimal
+		dataType: double
 		isHidden
 		lineageTag: 944ac495-625b-5796-93d5-1fcc65f5da4e
-		summarizeBy: none
+		summarizeBy: sum
 		sourceColumn: review_score_avg
 
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
 	column delivery_days
-		dataType: decimal
+		dataType: double
 		isHidden
 		lineageTag: a07c8481-dd9f-5898-98af-4fcfa5fb2813
-		summarizeBy: none
+		summarizeBy: sum
 		sourceColumn: delivery_days
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
 
 	column estimated_delivery_days
 		dataType: int64
@@ -228,3 +250,4 @@ table fact_orders
 				    Selected = Table.SelectColumns(Data, {"order_id", "customer_key", "purchase_date_key", "order_status", "purchased_at", "delivered_customer_at", "estimated_delivery_date", "item_count", "items_price", "items_freight", "payment_count", "payment_value", "review_count", "review_score_avg", "delivery_days", "estimated_delivery_days", "delivery_vs_estimate_days", "is_delivered", "is_late", "delivery_status"})
 				in
 				    Selected
+
