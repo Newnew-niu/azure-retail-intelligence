@@ -1,0 +1,36 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/visualContainer/1.0.0/schema.json",
+  "name": "9cfada148bedc39653e1",
+  "position": {
+    "x": 540,
+    "y": 486,
+    "z": 23,
+    "width": 244,
+    "height": 180,
+    "tabOrder": 23
+  },
+  "visual": {
+    "visualType": "textbox",
+    "drillFilterOtherVisuals": true,
+    "objects": {
+      "general": [
+        {
+          "properties": {
+            "paragraphs": [
+              {
+                "textRuns": [
+                  {
+                    "value": "Late orders have lower average review scores. This is an association only: the dashboard does not show that lateness causes the lower score (product, seller and region are not controlled for).",
+                    "textStyle": {
+                      "fontSize": "9pt"
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      ]
+    }
+  }
+}

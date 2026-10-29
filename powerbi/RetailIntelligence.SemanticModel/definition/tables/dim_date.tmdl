@@ -1,0 +1,99 @@
+/// Calendar, one row per day (date_key = yyyymmdd)
+table dim_date
+	lineageTag: c03fcce2-05fa-54ac-ac41-a5e69582e473
+	dataCategory: Time
+
+	column date_key
+		dataType: int64
+		isHidden
+		lineageTag: 2be293dc-d5e9-5815-8da4-b257589204b5
+		summarizeBy: none
+		sourceColumn: date_key
+
+	column date
+		dataType: dateTime
+		isKey
+		formatString: yyyy-mm-dd
+		lineageTag: b79c4214-9e09-5b77-abc0-fe211a553542
+		summarizeBy: none
+		sourceColumn: date
+
+	column year
+		dataType: int64
+		lineageTag: 1d66b6f1-a78b-5acb-9cea-ce6af40f8f03
+		summarizeBy: none
+		sourceColumn: year
+
+	column quarter
+		dataType: int64
+		lineageTag: e0ced7c2-c5d1-57d5-aef4-f4b2675150d8
+		summarizeBy: none
+		sourceColumn: quarter
+
+	column month
+		dataType: int64
+		isHidden
+		lineageTag: a7f43e34-7d42-5ada-adf3-8af812b3f525
+		summarizeBy: none
+		sourceColumn: month
+
+	column month_name
+		dataType: string
+		sortByColumn: month
+		lineageTag: 63bac307-e261-5c4f-a255-64777a953eec
+		summarizeBy: none
+		sourceColumn: month_name
+
+	column year_month
+		dataType: string
+		lineageTag: 5fddec32-f247-5e24-b298-01024d8dda9a
+		summarizeBy: none
+		sourceColumn: year_month
+
+	column month_start
+		dataType: dateTime
+		formatString: mmm yyyy
+		lineageTag: eb3136cc-fa7c-5687-ac49-d57634258f8c
+		summarizeBy: none
+		sourceColumn: month_start
+
+	column day_of_month
+		dataType: int64
+		lineageTag: 323b219a-27a2-5416-a53c-003de6fe78c4
+		summarizeBy: none
+		sourceColumn: day_of_month
+
+	column day_of_week
+		dataType: int64
+		isHidden
+		lineageTag: 5611ebd1-a0b0-5760-91d5-c6725980f42c
+		summarizeBy: none
+		sourceColumn: day_of_week
+
+	column day_name
+		dataType: string
+		sortByColumn: day_of_week
+		lineageTag: fbd8c3b8-38c5-5a26-94db-aee6f52cc936
+		summarizeBy: none
+		sourceColumn: day_name
+
+	column is_weekend
+		dataType: boolean
+		lineageTag: e14ecc0d-99c0-5691-aff6-7c56fbfb8ed0
+		summarizeBy: none
+		sourceColumn: is_weekend
+
+	column 'In Reporting Window' = dim_date[date] >= DATE(2017, 1, 1) && dim_date[date] <= DATE(2018, 8, 31)
+		dataType: boolean
+		lineageTag: 7d5fd345-b8de-54fc-9e31-4c422d57f7f4
+		summarizeBy: none
+
+	partition dim_date = m
+		mode: import
+		source =
+				let
+				    Source = Sql.Database(Server, Database),
+				    Data = Source{[Schema = "dw", Item = "dim_date"]}[Data],
+				    Selected = Table.SelectColumns(Data, {"date_key", "date", "year", "quarter", "month", "month_name", "year_month", "month_start", "day_of_month", "day_of_week", "day_name", "is_weekend"})
+				in
+				    Selected

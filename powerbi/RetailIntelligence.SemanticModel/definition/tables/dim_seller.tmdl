@@ -1,0 +1,52 @@
+/// One row per seller
+table dim_seller
+	lineageTag: 4e9f4628-e1e9-5e1e-8e9a-0de265facf1a
+
+	column seller_key
+		dataType: int64
+		isHidden
+		lineageTag: b011c775-3030-5752-ad07-87ee198da51e
+		summarizeBy: none
+		sourceColumn: seller_key
+
+	column seller_id
+		dataType: string
+		lineageTag: 1ed5ed2f-a1c5-542b-a7e4-b938fa071445
+		summarizeBy: none
+		sourceColumn: seller_id
+
+	column city
+		dataType: string
+		lineageTag: 907dbdb9-b79e-5fdb-9840-beed29afa627
+		summarizeBy: none
+		sourceColumn: city
+
+	column state
+		dataType: string
+		lineageTag: fb44ea15-fa27-5159-84fb-f0117ec8e2b9
+		summarizeBy: none
+		sourceColumn: state
+
+	column latitude
+		dataType: double
+		dataCategory: Latitude
+		lineageTag: 4b7889f0-34c5-592c-92af-5d752aa4adb9
+		summarizeBy: none
+		sourceColumn: latitude
+
+	column longitude
+		dataType: double
+		dataCategory: Longitude
+		lineageTag: d8de2379-96c7-5225-b21a-9472cee3fbae
+		summarizeBy: none
+		sourceColumn: longitude
+
+	partition dim_seller = m
+		mode: import
+		source =
+				let
+				    Source = Sql.Database(Server, Database),
+				    Data = Source{[Schema = "dw", Item = "dim_seller"]}[Data],
+				    Selected = Table.SelectColumns(Data, {"seller_key", "seller_id", "city", "state", "latitude", "longitude"})
+				in
+				    Selected

@@ -1,0 +1,38 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/visualContainer/1.0.0/schema.json",
+  "name": "24ccea40e23ce6375d8a",
+  "position": {
+    "x": 24,
+    "y": 80,
+    "z": 10,
+    "width": 296,
+    "height": 110,
+    "tabOrder": 10
+  },
+  "visual": {
+    "visualType": "card",
+    "drillFilterOtherVisuals": true,
+    "query": {
+      "queryState": {
+        "Values": {
+          "projections": [
+            {
+              "field": {
+                "Measure": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "fact_orders"
+                    }
+                  },
+                  "Property": "Customers"
+                }
+              },
+              "queryRef": "fact_orders.Customers",
+              "nativeQueryRef": "Customers"
+            }
+          ]
+        }
+      }
+    }
+  }
+}

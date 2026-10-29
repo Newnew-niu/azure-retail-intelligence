@@ -1,0 +1,56 @@
+/// One row per product, with English category (Portuguese fallback)
+table dim_product
+	lineageTag: 1672a646-c980-5a82-b3cd-93b783e357d1
+
+	column product_key
+		dataType: int64
+		isHidden
+		lineageTag: 4ecf8edb-4f86-5d90-b47c-d27b167fc5ec
+		summarizeBy: none
+		sourceColumn: product_key
+
+	column product_id
+		dataType: string
+		lineageTag: 410ed0f7-76c8-57d2-88ee-4081fc80172f
+		summarizeBy: none
+		sourceColumn: product_id
+
+	column category_name_pt
+		dataType: string
+		lineageTag: 6ba380ad-9dfb-593a-a7da-93fc822500a3
+		summarizeBy: none
+		sourceColumn: category_name_pt
+
+	column category_name_en
+		dataType: string
+		lineageTag: 620588a5-44aa-51b7-87a5-6956ac6a418d
+		summarizeBy: none
+		sourceColumn: category_name_en
+
+	column is_category_translated
+		dataType: boolean
+		lineageTag: d8e99fc9-6030-5dc6-aade-2a60aee3fb7d
+		summarizeBy: none
+		sourceColumn: is_category_translated
+
+	column photos_qty
+		dataType: int64
+		lineageTag: b0a504b8-3bbe-5289-a509-9fef1d2cf5b1
+		summarizeBy: none
+		sourceColumn: photos_qty
+
+	column weight_g
+		dataType: int64
+		lineageTag: e93ab80c-1daf-53c0-a59a-928328d006ec
+		summarizeBy: none
+		sourceColumn: weight_g
+
+	partition dim_product = m
+		mode: import
+		source =
+				let
+				    Source = Sql.Database(Server, Database),
+				    Data = Source{[Schema = "dw", Item = "dim_product"]}[Data],
+				    Selected = Table.SelectColumns(Data, {"product_key", "product_id", "category_name_pt", "category_name_en", "is_category_translated", "photos_qty", "weight_g"})
+				in
+				    Selected

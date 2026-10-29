@@ -1,0 +1,36 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/visualContainer/1.0.0/schema.json",
+  "name": "436e1f21c984a8234f96",
+  "position": {
+    "x": 24,
+    "y": 690,
+    "z": 1,
+    "width": 1232,
+    "height": 26,
+    "tabOrder": 1
+  },
+  "visual": {
+    "visualType": "textbox",
+    "drillFilterOtherVisuals": true,
+    "objects": {
+      "general": [
+        {
+          "properties": {
+            "paragraphs": [
+              {
+                "textRuns": [
+                  {
+                    "value": "Olist Brazilian E-Commerce (public dataset), Jan 2017 - Aug 2018. Amounts in BRL (Brazilian real). Sales orders exclude canceled and unavailable orders.",
+                    "textStyle": {
+                      "fontSize": "9pt"
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      ]
+    }
+  }
+}

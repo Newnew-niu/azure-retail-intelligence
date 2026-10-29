@@ -1,0 +1,65 @@
+/// One row per customer_id (= per order in Olist); the person is customer_unique_id
+table dim_customer
+	lineageTag: 32300e14-d26c-5081-907d-abf3239687aa
+
+	column customer_key
+		dataType: int64
+		isHidden
+		lineageTag: 3ca9d06e-34c4-5b04-b6c2-711113abeec2
+		summarizeBy: none
+		sourceColumn: customer_key
+
+	column customer_id
+		dataType: string
+		isHidden
+		lineageTag: 1c4ad206-02af-51c9-99d6-3547f1ec640f
+		summarizeBy: none
+		sourceColumn: customer_id
+
+	column customer_unique_id
+		dataType: string
+		lineageTag: ced5859d-4257-53fb-a220-82d38fabdf60
+		summarizeBy: none
+		sourceColumn: customer_unique_id
+
+	column zip_code_prefix
+		dataType: string
+		lineageTag: cb32663a-423a-5525-b90a-59a69bca0d47
+		summarizeBy: none
+		sourceColumn: zip_code_prefix
+
+	column city
+		dataType: string
+		lineageTag: 75a6a4e7-a249-536c-93f7-4bf42cd8cc82
+		summarizeBy: none
+		sourceColumn: city
+
+	column state
+		dataType: string
+		lineageTag: cc3bd5b6-042d-524d-810b-daecdd36c183
+		summarizeBy: none
+		sourceColumn: state
+
+	column latitude
+		dataType: double
+		dataCategory: Latitude
+		lineageTag: b53fe01c-4719-561a-82c7-9eb6d2084ec5
+		summarizeBy: none
+		sourceColumn: latitude
+
+	column longitude
+		dataType: double
+		dataCategory: Longitude
+		lineageTag: 515598c1-93a6-5f19-9f05-9c4f292728bf
+		summarizeBy: none
+		sourceColumn: longitude
+
+	partition dim_customer = m
+		mode: import
+		source =
+				let
+				    Source = Sql.Database(Server, Database),
+				    Data = Source{[Schema = "dw", Item = "dim_customer"]}[Data],
+				    Selected = Table.SelectColumns(Data, {"customer_key", "customer_id", "customer_unique_id", "zip_code_prefix", "city", "state", "latitude", "longitude"})
+				in
+				    Selected

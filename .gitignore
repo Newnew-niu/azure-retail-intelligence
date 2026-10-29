@@ -26,3 +26,7 @@ logs/
 Thumbs.db
 .vscode/
 .idea/
+
+# Power BI project: local settings and the imported-data cache are not source
+powerbi/**/.pbi/localSettings.json
+powerbi/**/.pbi/cache.abf

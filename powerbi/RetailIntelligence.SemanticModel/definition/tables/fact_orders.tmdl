@@ -1,0 +1,230 @@
+/// One row per order, with item/payment/review aggregates and delivery measures
+table fact_orders
+	lineageTag: 9496f354-0857-5a14-9c09-9e28a8588fb4
+
+	/// Every order, whatever its status
+	measure 'All Orders' = COUNTROWS(fact_orders)
+		formatString: #,##0
+		displayFolder: Orders
+		lineageTag: 5ee32172-8b32-50c6-8696-dfb8592a3316
+
+	/// Orders whose status is not canceled or unavailable
+	measure 'Sales Orders' = CALCULATE(COUNTROWS(fact_orders), KEEPFILTERS(NOT fact_orders[order_status] IN {"canceled", "unavailable"}))
+		formatString: #,##0
+		displayFolder: Orders
+		lineageTag: a14dd0e7-50e0-58af-a0c0-656090b65d3d
+
+	/// Share of orders that were canceled or unavailable
+	measure 'Canceled or Unavailable Rate' = DIVIDE(CALCULATE(COUNTROWS(fact_orders), KEEPFILTERS(fact_orders[order_status] IN {"canceled", "unavailable"})), [All Orders])
+		formatString: 0.0%
+		displayFolder: Orders
+		lineageTag: 035b8b5b-5b5c-50e6-941d-40f1215a01f2
+
+	/// Distinct people (customer_unique_id) with at least one sales order
+	measure Customers = COUNTROWS(SUMMARIZE(CALCULATETABLE(fact_orders, KEEPFILTERS(NOT fact_orders[order_status] IN {"canceled", "unavailable"})), dim_customer[customer_unique_id]))
+		formatString: #,##0
+		displayFolder: Customers
+		lineageTag: 98807c27-87e5-5077-be05-ca7fa7305b1c
+
+	/// Customers with more than one sales order in the selected period / customers
+	measure 'Repeat Customer Rate' =
+			VAR people =
+			    ADDCOLUMNS(
+			        SUMMARIZE(CALCULATETABLE(fact_orders, KEEPFILTERS(NOT fact_orders[order_status] IN {"canceled", "unavailable"})), dim_customer[customer_unique_id]),
+			        "@orders", [Sales Orders])
+			RETURN
+			    DIVIDE(COUNTROWS(FILTER(people, [@orders] > 1)), COUNTROWS(people))
+		formatString: 0.0%
+		displayFolder: Customers
+		lineageTag: 4443500b-dca5-51a6-ac04-b6fc2ee8791c
+
+	/// (product sales + freight) / sales orders that have items, BRL
+	measure 'Average Order Value' = DIVIDE([Product Sales] + [Freight], CALCULATE([Sales Orders], KEEPFILTERS(fact_orders[item_count] > 0)))
+		formatString: #,##0.00
+		displayFolder: Sales
+		lineageTag: de3ddc83-dc04-5c4e-b6e4-65f6fb7a2a5f
+
+	/// Status delivered and a customer delivery timestamp
+	measure 'Delivered Orders' = CALCULATE(COUNTROWS(fact_orders), KEEPFILTERS(fact_orders[is_delivered] = TRUE()))
+		formatString: #,##0
+		displayFolder: Delivery
+		lineageTag: 7f5f44a4-519b-57cf-844d-f6093e20239e
+
+	/// Purchase to customer delivery, delivered orders only
+	measure 'Avg Delivery Days' = CALCULATE(AVERAGE(fact_orders[delivery_days]), KEEPFILTERS(fact_orders[is_delivered] = TRUE()))
+		formatString: 0.0
+		displayFolder: Delivery
+		lineageTag: e60bd486-2869-55d8-8b0f-240873f21737
+
+	/// Purchase date to promised date, delivered orders only
+	measure 'Avg Estimated Delivery Days' = CALCULATE(AVERAGE(fact_orders[estimated_delivery_days]), KEEPFILTERS(fact_orders[is_delivered] = TRUE()))
+		formatString: 0.0
+		displayFolder: Delivery
+		lineageTag: 2af14b8d-3aa1-5911-abf3-9608f60ebda5
+
+	/// Delivered after the estimated delivery date
+	measure 'Late Deliveries' = CALCULATE(COUNTROWS(fact_orders), KEEPFILTERS(fact_orders[is_late] = TRUE()))
+		formatString: #,##0
+		displayFolder: Delivery
+		lineageTag: 3aff15c1-293f-56ea-8949-ed171e2fd402
+
+	/// Late deliveries / delivered orders
+	measure 'Late Delivery Rate' = DIVIDE([Late Deliveries], [Delivered Orders])
+		formatString: 0.0%
+		displayFolder: Delivery
+		lineageTag: e7173411-9fcd-5536-8ed9-a58fae75f48e
+
+	/// Mean of the per-order average score (1-5), reviewed orders only
+	measure 'Avg Review Score' = AVERAGE(fact_orders[review_score_avg])
+		formatString: 0.00
+		displayFolder: Reviews
+		lineageTag: b92d6d57-143c-507c-a18a-29fe48401a33
+
+	/// Orders with at least one review
+	measure 'Reviewed Orders' = CALCULATE(COUNTROWS(fact_orders), KEEPFILTERS(fact_orders[review_count] > 0))
+		formatString: #,##0
+		displayFolder: Reviews
+		lineageTag: a4f120a9-1c75-5c9e-a059-b44a35bc3fd3
+
+	column order_id
+		dataType: string
+		lineageTag: 8c6c47d1-f4cc-58ad-baf3-61602511c94d
+		summarizeBy: none
+		sourceColumn: order_id
+
+	column customer_key
+		dataType: int64
+		isHidden
+		lineageTag: ce273f99-3147-5840-b216-6be7d5b5dd9e
+		summarizeBy: none
+		sourceColumn: customer_key
+
+	column purchase_date_key
+		dataType: int64
+		isHidden
+		lineageTag: dd5fb7fb-83e7-5e16-9183-6c96a25fdc8f
+		summarizeBy: none
+		sourceColumn: purchase_date_key
+
+	column order_status
+		dataType: string
+		lineageTag: bfd96600-91a1-58b6-9806-df5f456a378d
+		summarizeBy: none
+		sourceColumn: order_status
+
+	column purchased_at
+		dataType: dateTime
+		formatString: yyyy-mm-dd hh:nn
+		lineageTag: ef9eaea0-70c5-5db0-a8a3-737335b90ef6
+		summarizeBy: none
+		sourceColumn: purchased_at
+
+	column delivered_customer_at
+		dataType: dateTime
+		formatString: yyyy-mm-dd hh:nn
+		lineageTag: 5e6765de-3602-5c22-94cd-8f764e50105d
+		summarizeBy: none
+		sourceColumn: delivered_customer_at
+
+	column estimated_delivery_date
+		dataType: dateTime
+		formatString: yyyy-mm-dd
+		lineageTag: 874614ce-4d15-5de5-ac4f-0bbd1b8aecbc
+		summarizeBy: none
+		sourceColumn: estimated_delivery_date
+
+	column item_count
+		dataType: int64
+		lineageTag: f56fe2c4-0302-5131-b120-37e019249797
+		summarizeBy: sum
+		sourceColumn: item_count
+
+	column items_price
+		dataType: decimal
+		isHidden
+		lineageTag: 33bfed01-e885-5de5-9e47-4b3ed657a5e2
+		summarizeBy: none
+		sourceColumn: items_price
+
+	column items_freight
+		dataType: decimal
+		isHidden
+		lineageTag: bf54adf1-2cd3-5ebd-931d-682d2f2ac0fd
+		summarizeBy: none
+		sourceColumn: items_freight
+
+	column payment_count
+		dataType: int64
+		isHidden
+		lineageTag: 23db591b-505b-580e-8668-6923d853257e
+		summarizeBy: none
+		sourceColumn: payment_count
+
+	column payment_value
+		dataType: decimal
+		isHidden
+		lineageTag: 006a14e8-0ab0-5c98-b9a3-e0162009b0fb
+		summarizeBy: none
+		sourceColumn: payment_value
+
+	column review_count
+		dataType: int64
+		isHidden
+		lineageTag: 5b44da8f-f95a-58fc-a20f-dd0401846f51
+		summarizeBy: none
+		sourceColumn: review_count
+
+	column review_score_avg
+		dataType: decimal
+		isHidden
+		lineageTag: 944ac495-625b-5796-93d5-1fcc65f5da4e
+		summarizeBy: none
+		sourceColumn: review_score_avg
+
+	column delivery_days
+		dataType: decimal
+		isHidden
+		lineageTag: a07c8481-dd9f-5898-98af-4fcfa5fb2813
+		summarizeBy: none
+		sourceColumn: delivery_days
+
+	column estimated_delivery_days
+		dataType: int64
+		isHidden
+		lineageTag: 46b878ec-f1a5-59f4-8066-729567cda510
+		summarizeBy: none
+		sourceColumn: estimated_delivery_days
+
+	column delivery_vs_estimate_days
+		dataType: int64
+		lineageTag: f2f4aeb2-2281-5d11-a7e3-34625bc4fd64
+		summarizeBy: none
+		sourceColumn: delivery_vs_estimate_days
+
+	column is_delivered
+		dataType: boolean
+		lineageTag: bb84352d-1a03-5e9f-988b-519916b5877e
+		summarizeBy: none
+		sourceColumn: is_delivered
+
+	column is_late
+		dataType: boolean
+		lineageTag: f43591e6-ddf4-508a-9d4c-5a050e9119b9
+		summarizeBy: none
+		sourceColumn: is_late
+
+	column delivery_status
+		dataType: string
+		lineageTag: 0711f68a-565b-53bb-a26a-c74f88faeade
+		summarizeBy: none
+		sourceColumn: delivery_status
+
+	partition fact_orders = m
+		mode: import
+		source =
+				let
+				    Source = Sql.Database(Server, Database),
+				    Data = Source{[Schema = "dw", Item = "fact_orders"]}[Data],
+				    Selected = Table.SelectColumns(Data, {"order_id", "customer_key", "purchase_date_key", "order_status", "purchased_at", "delivered_customer_at", "estimated_delivery_date", "item_count", "items_price", "items_freight", "payment_count", "payment_value", "review_count", "review_score_avg", "delivery_days", "estimated_delivery_days", "delivery_vs_estimate_days", "is_delivered", "is_late", "delivery_status"})
+				in
+				    Selected

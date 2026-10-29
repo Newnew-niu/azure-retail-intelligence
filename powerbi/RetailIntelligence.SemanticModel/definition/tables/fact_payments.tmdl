@@ -1,0 +1,83 @@
+/// One row per payment record
+table fact_payments
+	lineageTag: 4cef7f8c-237c-59e8-8f37-96d42ef663d3
+
+	/// Sum of payment records of sales orders, BRL (can differ from price + freight)
+	measure 'Payment Value' = CALCULATE(SUM(fact_payments[payment_value]), KEEPFILTERS(NOT fact_payments[order_status] IN {"canceled", "unavailable"}))
+		formatString: #,##0
+		displayFolder: Payments
+		lineageTag: 33c7125c-f057-5c96-8462-8f9d4ff399ec
+
+	/// Share of payment value by payment type
+	measure 'Payment Value Share' = DIVIDE([Payment Value], CALCULATE([Payment Value], REMOVEFILTERS(fact_payments[payment_type])))
+		formatString: 0.0%
+		displayFolder: Payments
+		lineageTag: f9a9d148-e3b5-5a6e-b58f-00aa221a99d6
+
+	/// Average number of instalments per payment record
+	measure 'Avg Installments' = CALCULATE(AVERAGE(fact_payments[payment_installments]), KEEPFILTERS(NOT fact_payments[order_status] IN {"canceled", "unavailable"}))
+		formatString: 0.0
+		displayFolder: Payments
+		lineageTag: 62aed9af-4c48-5f09-9085-a2e9de728f66
+
+	column order_id
+		dataType: string
+		lineageTag: dae5344b-c7db-5b38-9e09-a31e76f9f1e2
+		summarizeBy: none
+		sourceColumn: order_id
+
+	column payment_sequential
+		dataType: int64
+		lineageTag: 97b52df4-5df6-5f1b-852e-c931ccb5d5da
+		summarizeBy: none
+		sourceColumn: payment_sequential
+
+	column customer_key
+		dataType: int64
+		isHidden
+		lineageTag: 2a7de0db-9216-54f9-8f6b-1a74c6f3326e
+		summarizeBy: none
+		sourceColumn: customer_key
+
+	column purchase_date_key
+		dataType: int64
+		isHidden
+		lineageTag: b69a1bbd-dedb-537f-8830-e7e2c9ab08e2
+		summarizeBy: none
+		sourceColumn: purchase_date_key
+
+	column order_status
+		dataType: string
+		lineageTag: 559d5a44-0263-54d4-b706-05134127d7ae
+		summarizeBy: none
+		sourceColumn: order_status
+
+	column payment_type
+		dataType: string
+		lineageTag: a9d401f6-394f-55ab-b650-97b210ce8767
+		summarizeBy: none
+		sourceColumn: payment_type
+
+	column payment_installments
+		dataType: int64
+		isHidden
+		lineageTag: 48054d80-e8fa-5c59-b404-bf05d0d37d39
+		summarizeBy: none
+		sourceColumn: payment_installments
+
+	column payment_value
+		dataType: decimal
+		isHidden
+		lineageTag: 9256542e-7fc0-5374-917f-9d77f03766e5
+		summarizeBy: none
+		sourceColumn: payment_value
+
+	partition fact_payments = m
+		mode: import
+		source =
+				let
+				    Source = Sql.Database(Server, Database),
+				    Data = Source{[Schema = "dw", Item = "fact_payments"]}[Data],
+				    Selected = Table.SelectColumns(Data, {"order_id", "payment_sequential", "customer_key", "purchase_date_key", "order_status", "payment_type", "payment_installments", "payment_value"})
+				in
+				    Selected

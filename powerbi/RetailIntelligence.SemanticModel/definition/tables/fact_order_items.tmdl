@@ -1,0 +1,103 @@
+/// One row per order item
+table fact_order_items
+	lineageTag: 6d7a6672-06e3-53b5-a558-815e5fd68d8c
+
+	/// Sum of item prices of sales orders, excluding freight, BRL
+	measure 'Product Sales' = CALCULATE(SUM(fact_order_items[price]), KEEPFILTERS(NOT fact_order_items[order_status] IN {"canceled", "unavailable"}))
+		formatString: #,##0
+		displayFolder: Sales
+		lineageTag: 68d7f15c-57ee-5d75-ae22-0230ead97c03
+
+	/// Sum of item freight of sales orders, BRL
+	measure Freight = CALCULATE(SUM(fact_order_items[freight_value]), KEEPFILTERS(NOT fact_order_items[order_status] IN {"canceled", "unavailable"}))
+		formatString: #,##0
+		displayFolder: Sales
+		lineageTag: ce28d165-26d3-597d-88b6-9cfaa25f8958
+
+	/// Order items of sales orders
+	measure 'Items Sold' = CALCULATE(COUNTROWS(fact_order_items), KEEPFILTERS(NOT fact_order_items[order_status] IN {"canceled", "unavailable"}))
+		formatString: #,##0
+		displayFolder: Sales
+		lineageTag: 5328a1c1-84f3-5e28-b1a0-e52055fb0ccf
+
+	/// Product sales / items sold, BRL
+	measure 'Avg Item Price' = DIVIDE([Product Sales], [Items Sold])
+		formatString: #,##0.00
+		displayFolder: Sales
+		lineageTag: a6258594-7350-52fa-973e-80657b03a7fb
+
+	/// Average review score of the orders containing the items in context (e.g. a category). A review is per order, so an order with several categories counts for each of them.
+	measure 'Avg Review Score of Item Orders' = CALCULATE([Avg Review Score], TREATAS(VALUES(fact_order_items[order_id]), fact_orders[order_id]))
+		formatString: 0.00
+		displayFolder: Reviews
+		lineageTag: 4df27abd-99e8-5b1b-8a34-3fa35a5892b5
+
+	column order_id
+		dataType: string
+		lineageTag: 6952e896-521c-560d-9ca4-fcb2ba001d6e
+		summarizeBy: none
+		sourceColumn: order_id
+
+	column order_item_id
+		dataType: int64
+		lineageTag: 67e5fa88-abad-5e94-9e08-7a25cb4d0a68
+		summarizeBy: none
+		sourceColumn: order_item_id
+
+	column product_key
+		dataType: int64
+		isHidden
+		lineageTag: b72ba65d-5286-52dd-a793-565c909435f3
+		summarizeBy: none
+		sourceColumn: product_key
+
+	column seller_key
+		dataType: int64
+		isHidden
+		lineageTag: 6787c783-b7b7-5343-abfc-6ceaef6be177
+		summarizeBy: none
+		sourceColumn: seller_key
+
+	column customer_key
+		dataType: int64
+		isHidden
+		lineageTag: c98011a5-daa6-54cd-9356-c471532b41fa
+		summarizeBy: none
+		sourceColumn: customer_key
+
+	column purchase_date_key
+		dataType: int64
+		isHidden
+		lineageTag: f21678cb-b475-5cab-897b-ce014b9d97d4
+		summarizeBy: none
+		sourceColumn: purchase_date_key
+
+	column order_status
+		dataType: string
+		lineageTag: 3c9c48bb-97b3-5928-b534-c6e665667d98
+		summarizeBy: none
+		sourceColumn: order_status
+
+	column price
+		dataType: decimal
+		isHidden
+		lineageTag: d7f9270c-430c-55e4-8d22-b0d20438a000
+		summarizeBy: none
+		sourceColumn: price
+
+	column freight_value
+		dataType: decimal
+		isHidden
+		lineageTag: da57e9fe-0636-5af3-b977-6cfb81bc94eb
+		summarizeBy: none
+		sourceColumn: freight_value
+
+	partition fact_order_items = m
+		mode: import
+		source =
+				let
+				    Source = Sql.Database(Server, Database),
+				    Data = Source{[Schema = "dw", Item = "fact_order_items"]}[Data],
+				    Selected = Table.SelectColumns(Data, {"order_id", "order_item_id", "product_key", "seller_key", "customer_key", "purchase_date_key", "order_status", "price", "freight_value"})
+				in
+				    Selected
