@@ -77,7 +77,7 @@ lose nor invent anomalies.
 | ADF failure | batch `does_not_exist` | Fails in 36 s at the validation gate; `ops.pipeline_run` = FAILED with the reason; existing data untouched | ADF runs `64c783df-…` (before the gate), `d1ba0575-…` |
 | ADF raw → stg → dw → DQ | `scripts/adf.py run` | Succeeded; DQ 15 PASS / 13 WARN / 0 FAIL, as locally | ADF run `7402c0db-…` |
 | Cloud = local | All 6 mart views dumped from LocalDB and Azure SQL and compared | Identical (3,185 rows) | session log |
-| Power BI | Refresh from Azure SQL; cards compared with the SQL expected values in [business requirements](business_requirements.md) | Matched (checked by the project owner) | manual |
+| Power BI | Refresh from Azure SQL; the 11 cards and 3 category review scores compared with SQL-computed expected values | All matched | screenshots in `docs/images/` |
 
 ## Tests that were deliberately broken
 

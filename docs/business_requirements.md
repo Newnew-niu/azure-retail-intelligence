@@ -18,7 +18,7 @@ customers, built on numbers that reconcile to the source.
 | 5 | How often are deliveries late, and where? | Delivery and Operations | Late Delivery Rate, Avg Delivery Days by state |
 | 6 | How do review scores differ between on-time and late orders? | Delivery and Operations | Avg Review Score by delivery outcome |
 | 7 | How many customers buy more than once? | Customer and Product Insights | Customers, Repeat Customer Rate |
-| 8 | What do categories sell, at what price, and how are their orders reviewed? | Customer and Product Insights | Items Sold, Product Sales, Avg Item Price, Avg Review Score of Item Orders |
+| 8 | What do categories sell, at what price, and how are their orders reviewed? | Customer and Product Insights | Items Sold, Product Sales, Avg Item Price, Order Review Score |
 | 9 | How do customers pay? | Customer and Product Insights | Payment Value by payment type |
 
 ## KPI definitions

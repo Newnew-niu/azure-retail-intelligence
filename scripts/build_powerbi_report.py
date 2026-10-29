@@ -34,7 +34,7 @@ FOOTNOTE = ("Olist Brazilian E-Commerce (public dataset), Jan 2017 - Aug 2018. A
 # Measures and the table that hosts them (must match build_powerbi_model.MEASURES)
 MEASURE_TABLE = {
     "Product Sales": "fact_order_items", "Freight": "fact_order_items", "Items Sold": "fact_order_items",
-    "Avg Item Price": "fact_order_items", "Avg Review Score of Item Orders": "fact_order_items",
+    "Avg Item Price": "fact_order_items", "Order Review Score": "fact_order_items",
     "Payment Value": "fact_payments", "Payment Value Share": "fact_payments", "Avg Installments": "fact_payments",
 }
 
@@ -108,7 +108,9 @@ def header(page: str, heading: str) -> list[dict]:
 
 def cards(page: str, names: list[str]) -> list[dict]:
     width, gap = 296, 16
-    return [visual(page, f"card_{i}", "card", (24 + i * (width + gap), 80, width, 110), {"Values": [measure(n)]}, z=10 + i)
+    full_numbers = {"labels": [{"properties": {"labelDisplayUnits": literal("1D")}}]}  # 1 = no K/M units
+    return [visual(page, f"card_{i}", "card", (24 + i * (width + gap), 80, width, 110), {"Values": [measure(n)]},
+                   objects=full_numbers, z=10 + i)
             for i, n in enumerate(names)]
 
 
@@ -153,11 +155,12 @@ def customer_page() -> tuple[str, list[dict]]:
     return p, header(p, p) + cards(p, ["Customers", "Repeat Customer Rate", "Items Sold", "Avg Item Price"]) + [
         visual(p, "category_table", "tableEx", (24, 206, 760, 474),
                {"Values": [column("dim_product", "category_name_en"), measure("Items Sold"), measure("Product Sales"),
-                           measure("Avg Item Price"), measure("Avg Review Score of Item Orders")]},
+                           measure("Avg Item Price"), measure("Order Review Score")]},
                heading="Categories: volume, price and review score of their orders", sort=measure("Product Sales"), z=20),
         visual(p, "payment_mix", "donutChart", (800, 206, 456, 250),
                {"Category": [column("fact_payments", "payment_type")], "Y": [measure("Payment Value")]},
-               heading="Payment value by payment type", z=21),
+               heading="Payment value share by payment type",
+               objects={"labels": [{"properties": {"labelStyle": literal("'Percent of total'")}}]}, z=21),
         visual(p, "customers_state", "clusteredBarChart", (800, 470, 456, 210),
                {"Category": [column("dim_customer", "state")], "Y": [measure("Customers")]},
                heading="Customers by state", sort=measure("Customers"), z=22),

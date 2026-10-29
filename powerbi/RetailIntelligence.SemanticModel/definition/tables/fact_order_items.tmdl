@@ -27,10 +27,10 @@ table fact_order_items
 		lineageTag: a6258594-7350-52fa-973e-80657b03a7fb
 
 	/// Average review score of the orders containing the items in context (e.g. a category). A review is per order, so an order with several categories counts for each of them.
-	measure 'Avg Review Score of Item Orders' = CALCULATE([Avg Review Score], TREATAS(VALUES(fact_order_items[order_id]), fact_orders[order_id]))
+	measure 'Order Review Score' = CALCULATE([Avg Review Score], TREATAS(VALUES(fact_order_items[order_id]), fact_orders[order_id]))
 		formatString: 0.00
 		displayFolder: Reviews
-		lineageTag: 4df27abd-99e8-5b1b-8a34-3fa35a5892b5
+		lineageTag: a7d0d424-86e7-534f-98aa-5a5849fd489d
 
 	column order_id
 		dataType: string

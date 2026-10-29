@@ -177,7 +177,7 @@ MEASURES = [
      "#,##0", "Sales", "Order items of sales orders"),
     ("fact_order_items", "Avg Item Price", "DIVIDE([Product Sales], [Items Sold])",
      "#,##0.00", "Sales", "Product sales / items sold, BRL"),
-    ("fact_order_items", "Avg Review Score of Item Orders",
+    ("fact_order_items", "Order Review Score",
      "CALCULATE([Avg Review Score], TREATAS(VALUES(fact_order_items[order_id]), fact_orders[order_id]))",
      "0.00", "Reviews",
      "Average review score of the orders containing the items in context (e.g. a category). "

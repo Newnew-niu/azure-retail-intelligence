@@ -91,7 +91,7 @@ item twice and summing payments would count each payment three times.
 - The data quality suite checks this per order: `fact_orders.items_price` must equal the sum of the
   order's staged items, and the same for payments (ERROR severity).
 - In Power BI the facts are not related to each other. A product filter therefore affects item
-  measures only; the one measure that crosses grains (*Avg Review Score of Item Orders*) does it
+  measures only; the one measure that crosses grains (*Order Review Score*) does it
   explicitly with `TREATAS` and its description says that an order with several categories counts
   for each of them.
 
@@ -148,6 +148,9 @@ Import mode, generated as TMDL by `scripts/build_powerbi_model.py`:
 - 7 tables from `dw` (load metadata columns excluded); key columns hidden.
 - 8 single-direction, many-to-one relationships from dimensions to facts.
 - 21 measures, grouped in display folders, each with a description; definitions match the SQL marts.
+- *Order Review Score* (category table) averages the orders that contain the items in context, so its
+  total (4.11) covers orders with items only, while the *Avg Review Score* card (4.09) covers every
+  reviewed order, including canceled orders without items, which score lower.
 - `dim_date` is marked as the date table; auto date/time is off.
 - Calculated column `dim_date[In Reporting Window]` drives the report-level filter (Jan 2017 – Aug 2018).
 - Month axes use `year_month` (`2018-01`), not a formatted date, so labels do not depend on the

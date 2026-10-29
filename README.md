@@ -31,6 +31,14 @@ Three report pages for an online marketplace (Olist, Brazil, 2017 – Aug 2018):
 KPI definitions are in [docs/business_requirements.md](docs/business_requirements.md). The project
 deliberately does **not** calculate profit, margin or inventory measures: the data has no cost or stock information.
 
+### Report
+
+Rendered in Power BI Desktop after a refresh from Azure SQL (all pages: [docs/images/report.pdf](docs/images/report.pdf)).
+
+![Sales Performance](docs/images/sales.jpeg)
+![Delivery and Operations](docs/images/delivery.jpeg)
+![Customer and Product Insights](docs/images/customers.jpeg)
+
 ## Verification status
 
 Every claim in this repository is labelled with how it was verified.
