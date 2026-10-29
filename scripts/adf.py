@@ -49,19 +49,31 @@ def factory_url() -> str:
             f"/factories/{names['AZURE_DATA_FACTORY']}")
 
 
-def arm(method: str, url: str, body: dict | None = None) -> dict:
-    token = _credential.get_token("https://management.azure.com/.default").token
+def arm(method: str, url: str, body: dict | None = None, attempts: int = 4) -> dict:
+    """Call Azure Resource Manager; transient 429/5xx responses are retried with back-off.
+
+    Repeating a request is safe: PUT of a definition is idempotent, and if a timed-out
+    createRun had in fact started a run, the retry starts a second run of an idempotent
+    pipeline (same batch replaced, 0 rows changed), which is harmless.
+    """
     sep = "&" if "?" in url else "?"
-    request = urllib.request.Request(
-        f"{url}{sep}api-version={API_VERSION}", method=method,
-        data=None if body is None else json.dumps(body).encode("utf-8"),
-        headers={"Authorization": f"Bearer {token}", "Content-Type": "application/json"})
-    try:
-        with urllib.request.urlopen(request, timeout=60) as response:
-            payload = response.read()
-    except urllib.error.HTTPError as exc:
-        raise RuntimeError(f"{method} {url} -> HTTP {exc.code}: {exc.read().decode('utf-8', 'replace')}") from exc
-    return json.loads(payload) if payload else {}
+    for attempt in range(1, attempts + 1):
+        token = _credential.get_token("https://management.azure.com/.default").token
+        request = urllib.request.Request(
+            f"{url}{sep}api-version={API_VERSION}", method=method,
+            data=None if body is None else json.dumps(body).encode("utf-8"),
+            headers={"Authorization": f"Bearer {token}", "Content-Type": "application/json"})
+        try:
+            with urllib.request.urlopen(request, timeout=60) as response:
+                payload = response.read()
+            return json.loads(payload) if payload else {}
+        except urllib.error.HTTPError as exc:
+            transient = exc.code == 429 or exc.code >= 500
+            if not transient or attempt == attempts:
+                raise RuntimeError(f"{method} {url} -> HTTP {exc.code}: {exc.read().decode('utf-8', 'replace')}") from exc
+            print(f"  HTTP {exc.code} from ARM; retrying in {10 * attempt} s", file=sys.stderr)
+            time.sleep(10 * attempt)
+    raise AssertionError("unreachable")
 
 
 def render(path: Path) -> dict:

@@ -10,6 +10,8 @@ from __future__ import annotations
 
 import os
 import struct
+import sys
+import time
 from pathlib import Path
 
 import pyodbc
@@ -57,9 +59,22 @@ def _access_token_attribute() -> dict[int, bytes]:
     return {SQL_COPT_SS_ACCESS_TOKEN: struct.pack("<I", len(token)) + token}
 
 
-def connect(database: str | None = None, autocommit: bool = False) -> pyodbc.Connection:
-    """Connect to the project database (or to the server only, with database='')."""
+def connect(database: str | None = None, autocommit: bool = False, attempts: int = 6) -> pyodbc.Connection:
+    """Connect to the project database (or to the server only, with database='').
+
+    A serverless Azure SQL database that has auto-paused answers the first connection with
+    error 40613 ("not currently available") while it resumes, which takes about a minute;
+    that error is retried, every other error is raised immediately.
+    """
     db = database_name() if database is None else database
-    attrs = _access_token_attribute() if os.getenv("SQL_AUTH", "windows") == "azure_cli" else None
-    # Serverless Azure SQL can take ~1 minute to resume from auto-pause; allow for it.
-    return pyodbc.connect(connection_string(db or None), autocommit=autocommit, attrs_before=attrs, timeout=120)
+    for attempt in range(1, attempts + 1):
+        attrs = _access_token_attribute() if os.getenv("SQL_AUTH", "windows") == "azure_cli" else None
+        try:
+            return pyodbc.connect(connection_string(db or None), autocommit=autocommit, attrs_before=attrs, timeout=120)
+        except pyodbc.Error as exc:
+            if "(40613)" not in str(exc) or attempt == attempts:
+                raise
+            print(f"Database is resuming from auto-pause (40613); retrying in 20 s ({attempt}/{attempts - 1})",
+                  file=sys.stderr)
+            time.sleep(20)
+    raise AssertionError("unreachable")

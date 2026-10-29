@@ -68,7 +68,7 @@ def grant_adf_access(factory_name: str) -> None:
     """Create the Data Factory managed-identity user and its grants (Azure SQL only)."""
     with db.connect(autocommit=True) as conn:
         conn.execute(ADF_ACCESS_SCRIPT.read_text(encoding="utf-8"), factory_name)
-    print(f"  granted raw/stg/ops access to managed identity {factory_name}")
+    print(f"  granted raw/stg/dw/ops access to managed identity {factory_name}")
 
 
 def main() -> int:
