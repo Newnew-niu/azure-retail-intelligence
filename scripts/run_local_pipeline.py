@@ -4,9 +4,11 @@ Steps (each logged to ops.pipeline_run / ops.step_log):
   1. validate   - ingestion.validate_files (stops the run on any ERROR)
   2. raw        - ingestion.load_data, one step per source file
   3. stg        - staging stored procedures (they log their own steps)
+  4. dw         - dimension and fact procedures, then the data quality checks
+                  (an ERROR-severity check failure fails the run)
 
 Usage:
-    python scripts/run_local_pipeline.py [--batch-id full_load] [--data-dir data/raw] [--until raw|stg]
+    python scripts/run_local_pipeline.py [--batch-id full_load] [--data-dir data/raw] [--until raw|stg|dw]
 """
 from __future__ import annotations
 
@@ -37,6 +39,19 @@ STAGING_PROCEDURES = [
     "stg.usp_load_order_reviews",
     "stg.usp_load_geolocation",
 ]
+# Dimensions before facts (facts look up surrogate keys); quality checks last.
+DW_PROCEDURES = [
+    "dw.usp_load_dim_date",
+    "dw.usp_load_dim_customer",
+    "dw.usp_load_dim_product",
+    "dw.usp_load_dim_seller",
+    "dw.usp_load_fact_orders",
+    "dw.usp_load_fact_order_items",
+    "dw.usp_load_fact_payments",
+    "ops.usp_run_dq_checks",
+]
+# The ADF child pipeline runs exactly this list (checked by tests/test_adf_definitions.py).
+TRANSFORM_PROCEDURES = STAGING_PROCEDURES + DW_PROCEDURES
 
 
 # Logging and stored procedures use an AUTOCOMMIT connection, exactly like ADF's Stored
@@ -77,11 +92,12 @@ def run(batch_id: str, data_dir: Path, until: str) -> str:
                 raise
             step_end(ops_conn, step_id, "SUCCEEDED", rows_read=rows, rows_written=rows)
 
-        if until == "stg":
-            log.info("STAGING:")
-            for proc in STAGING_PROCEDURES:
-                ops_conn.execute(f"EXEC {proc} @run_id = ?, @batch_id = ?", run_id, batch_id)
-                log.info("  %s done", proc)
+        procedures = {"raw": [], "stg": STAGING_PROCEDURES, "dw": TRANSFORM_PROCEDURES}[until]
+        if procedures:
+            log.info("TRANSFORM:")
+        for proc in procedures:
+            ops_conn.execute(f"EXEC {proc} @run_id = ?, @batch_id = ?", run_id, batch_id)
+            log.info("  %s done", proc)
 
         ops_conn.execute("EXEC ops.usp_run_end @run_id = ?, @status = N'SUCCEEDED'", run_id)
     except Exception as exc:
@@ -96,10 +112,10 @@ def run(batch_id: str, data_dir: Path, until: str) -> str:
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Run the local pipeline (validate -> raw -> stg)")
+    parser = argparse.ArgumentParser(description="Run the local pipeline (validate -> raw -> stg -> dw)")
     parser.add_argument("--batch-id", default="full_load", help="batch to (re)load; reruns replace it")
     parser.add_argument("--data-dir", type=Path, default=validate_files.DEFAULT_DATA_DIR)
-    parser.add_argument("--until", choices=["raw", "stg"], default="stg", help="last layer to process")
+    parser.add_argument("--until", choices=["raw", "stg", "dw"], default="dw", help="last layer to process")
     args = parser.parse_args()
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(message)s", datefmt="%H:%M:%S")
     run(args.batch_id, args.data_dir, args.until)

@@ -10,6 +10,8 @@ import pytest
 from ingestion import db, validate_files
 
 BATCH_ID = "full_load"
+# Captured at import, before the SQL test fixture points SQL_DATABASE at the throwaway test database
+DEV_DATABASE = db.database_name()
 CONTRACT = validate_files.load_contract(validate_files.DEFAULT_CONTRACT)
 # Natural key of each staging table, as raw column names.
 STAGING_KEYS = {
@@ -29,7 +31,7 @@ def conn():
     if not (validate_files.DEFAULT_DATA_DIR / CONTRACT["entities"]["orders"]["file"]).is_file():
         pytest.skip("source data not downloaded")
     try:
-        connection = db.connect()
+        connection = db.connect(database=DEV_DATABASE)
     except Exception:
         pytest.skip("development database not available")
     succeeded = connection.execute("SELECT COUNT(*) FROM ops.pipeline_run WHERE batch_id = ? AND status = N'SUCCEEDED'",
@@ -84,3 +86,19 @@ def test_monetary_totals_reconcile_to_the_cent(conn, table, column, stg_table):
                                usecols=[column], dtype=str)[column].map(lambda v: round(float(v) * 100)).sum()
     staged_total = conn.execute(f"SELECT CAST(SUM({column}) * 100 AS BIGINT) FROM stg.{stg_table}").fetchval()
     assert staged_total == source_total
+
+
+def test_mart_monthly_sales_add_up_to_item_level_sales(conn):
+    mart = conn.execute("SELECT SUM(product_sales), SUM(sales_orders) FROM mart.vw_sales_monthly").fetchone()
+    items = conn.execute("SELECT SUM(price) FROM dw.fact_order_items "
+                         "WHERE order_status NOT IN (N'canceled', N'unavailable')").fetchval()
+    orders = conn.execute("SELECT COUNT(*) FROM dw.fact_orders "
+                          "WHERE order_status NOT IN (N'canceled', N'unavailable')").fetchval()
+    assert (mart[0], mart[1]) == (items, orders)
+
+
+def test_latest_run_has_no_failed_quality_checks(conn):
+    rows = conn.execute("SELECT status, COUNT(*) FROM ops.dq_result WHERE run_id = "
+                        "(SELECT TOP 1 run_id FROM ops.dq_result ORDER BY checked_at_utc DESC) GROUP BY status").fetchall()
+    statuses = dict(tuple(r) for r in rows)
+    assert statuses and "FAIL" not in statuses

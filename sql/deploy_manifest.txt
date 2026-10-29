@@ -15,3 +15,13 @@ staging/usp_load_order_items.sql
 staging/usp_load_order_payments.sql
 staging/usp_load_order_reviews.sql
 staging/usp_load_geolocation.sql
+dw/01_tables.sql
+dw/usp_load_dim_date.sql
+dw/usp_load_dim_customer.sql
+dw/usp_load_dim_product.sql
+dw/usp_load_dim_seller.sql
+dw/usp_load_fact_orders.sql
+dw/usp_load_fact_order_items.sql
+dw/usp_load_fact_payments.sql
+quality/usp_run_dq_checks.sql
+mart/01_views.sql

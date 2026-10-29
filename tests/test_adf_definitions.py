@@ -1,7 +1,7 @@
 """Static checks of the Data Factory definitions in adf/ (no Azure access needed).
 
 They keep the cloud pipeline in step with the local code: the same entities as the
-source contract, the same staging procedures in the same order as the local runner,
+source contract, the same transform procedures in the same order as the local runner,
 and no credentials or environment-specific names in the committed JSON.
 """
 import json
@@ -56,8 +56,8 @@ def test_copy_entities_match_the_source_contract():
     assert entities == {name: spec["file"] for name, spec in CONTRACT["entities"].items()}
 
 
-def test_staging_procedures_match_the_local_runner_in_order():
-    assert child_parameter("staging_procedures") == run_local_pipeline.STAGING_PROCEDURES
+def test_transform_procedures_match_the_local_runner_in_order():
+    assert child_parameter("transform_procedures") == run_local_pipeline.TRANSFORM_PROCEDURES
 
 
 def test_every_referenced_resource_is_defined():

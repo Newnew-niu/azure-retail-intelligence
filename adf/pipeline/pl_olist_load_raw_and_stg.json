@@ -1,7 +1,7 @@
 {
   "name": "pl_olist_load_raw_and_stg",
   "properties": {
-    "description": "Child of pl_olist_master. 0) Stop unless the batch has a validation report. 1) Copy each validated CSV of one batch from ADLS into its raw.* table (pre-copy DELETE of the same batch makes reruns idempotent), logging each copy to ops.step_log. 2) Run the staging procedures in dependency order; they log their own steps and rejects.",
+    "description": "Child of pl_olist_master. 0) Stop unless the batch has a validation report. 1) Copy each validated CSV of one batch from ADLS into its raw.* table (pre-copy DELETE of the same batch makes reruns idempotent), logging each copy to ops.step_log. 2) Run the staging, DW and data quality procedures in dependency order; they log their own steps, rejects and DQ results.",
     "parameters": {
       "run_id": { "type": "string" },
       "batch_id": { "type": "string", "defaultValue": "full_load" },
@@ -19,7 +19,7 @@
           { "entity": "product_category_translation", "file": "product_category_name_translation.csv" }
         ]
       },
-      "staging_procedures": {
+      "transform_procedures": {
         "type": "array",
         "defaultValue": [
           "stg.usp_load_customers",
@@ -30,7 +30,15 @@
           "stg.usp_load_order_items",
           "stg.usp_load_order_payments",
           "stg.usp_load_order_reviews",
-          "stg.usp_load_geolocation"
+          "stg.usp_load_geolocation",
+          "dw.usp_load_dim_date",
+          "dw.usp_load_dim_customer",
+          "dw.usp_load_dim_product",
+          "dw.usp_load_dim_seller",
+          "dw.usp_load_fact_orders",
+          "dw.usp_load_fact_order_items",
+          "dw.usp_load_fact_payments",
+          "ops.usp_run_dq_checks"
         ]
       }
     },
@@ -176,15 +184,15 @@
         }
       },
       {
-        "name": "ForEachStagingProcedure",
+        "name": "ForEachTransformProcedure",
         "type": "ForEach",
         "dependsOn": [ { "activity": "ForEachEntityCopyToRaw", "dependencyConditions": [ "Succeeded" ] } ],
         "typeProperties": {
-          "items": { "value": "@pipeline().parameters.staging_procedures", "type": "Expression" },
+          "items": { "value": "@pipeline().parameters.transform_procedures", "type": "Expression" },
           "isSequential": true,
           "activities": [
             {
-              "name": "RunStagingProcedure",
+              "name": "RunTransformProcedure",
               "type": "SqlServerStoredProcedure",
               "policy": { "timeout": "0.00:30:00", "retry": 0 },
               "linkedServiceName": { "referenceName": "ls_azure_sql", "type": "LinkedServiceReference" },

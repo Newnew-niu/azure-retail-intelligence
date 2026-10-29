@@ -52,3 +52,35 @@ CREATE TABLE ops.rejected_row (
     logged_at_utc   DATETIME2(3)   NOT NULL CONSTRAINT df_rejected_row_logged DEFAULT SYSUTCDATETIME()
 );
 GO
+
+-- High-water marks for incremental DW loads: the latest staging change (inserted/updated
+-- time) already applied to each target. Stored in the same transaction as the load, so a
+-- failed load is retried from the same point. DELETE a row to force a full rebuild.
+IF OBJECT_ID(N'ops.watermark') IS NULL
+CREATE TABLE ops.watermark (
+    target_object   NVARCHAR(200) NOT NULL CONSTRAINT pk_watermark PRIMARY KEY,
+    last_change_utc DATETIME2(3)  NOT NULL,
+    run_id          NVARCHAR(100) NOT NULL,
+    updated_at_utc  DATETIME2(3)  NOT NULL CONSTRAINT df_watermark_updated DEFAULT SYSUTCDATETIME()
+);
+GO
+
+-- One row per data quality check per run (see sql/quality/usp_run_dq_checks.sql).
+IF OBJECT_ID(N'ops.dq_result') IS NULL
+CREATE TABLE ops.dq_result (
+    dq_result_id   BIGINT IDENTITY(1, 1) NOT NULL CONSTRAINT pk_dq_result PRIMARY KEY,
+    run_id         NVARCHAR(100)  NOT NULL,
+    check_name     NVARCHAR(100)  NOT NULL,
+    check_category NVARCHAR(30)   NOT NULL,  -- reconciliation | uniqueness | completeness | validity | consistency | referential
+    target_object  NVARCHAR(200)  NOT NULL,
+    severity       NVARCHAR(10)   NOT NULL CONSTRAINT ck_dq_result_severity CHECK (severity IN (N'ERROR', N'WARN')),
+    failed_rows    BIGINT         NOT NULL,
+    status         NVARCHAR(10)   NOT NULL CONSTRAINT ck_dq_result_status CHECK (status IN (N'PASS', N'FAIL', N'WARN')),
+    description    NVARCHAR(400)  NOT NULL,
+    checked_at_utc DATETIME2(3)   NOT NULL CONSTRAINT df_dq_result_checked DEFAULT SYSUTCDATETIME()
+);
+GO
+
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'ix_dq_result_run' AND object_id = OBJECT_ID(N'ops.dq_result'))
+    CREATE INDEX ix_dq_result_run ON ops.dq_result (run_id);
+GO
