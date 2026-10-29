@@ -80,11 +80,11 @@
                       "Entity": "fact_order_items"
                     }
                   },
-                  "Property": "Avg Review Score of Item Orders"
+                  "Property": "Order Review Score"
                 }
               },
-              "queryRef": "fact_order_items.Avg Review Score of Item Orders",
-              "nativeQueryRef": "Avg Review Score of Item Orders"
+              "queryRef": "fact_order_items.Order Review Score",
+              "nativeQueryRef": "Order Review Score"
             }
           ]
         }

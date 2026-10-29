@@ -52,6 +52,21 @@
         }
       }
     },
+    "objects": {
+      "labels": [
+        {
+          "properties": {
+            "labelStyle": {
+              "expr": {
+                "Literal": {
+                  "Value": "'Percent of total'"
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
     "visualContainerObjects": {
       "title": [
         {
@@ -66,7 +81,7 @@
             "text": {
               "expr": {
                 "Literal": {
-                  "Value": "'Payment value by payment type'"
+                  "Value": "'Payment value share by payment type'"
                 }
               }
             }
