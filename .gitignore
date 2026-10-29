@@ -30,3 +30,5 @@ Thumbs.db
 # Power BI project: local settings and the imported-data cache are not source
 powerbi/**/.pbi/localSettings.json
 powerbi/**/.pbi/cache.abf
+
+powerbi/**/.pbi/editorSettings.json
