@@ -80,11 +80,15 @@ The run is also visible in ADF Studio → Monitor, and in `ops.pipeline_run` / `
 
 ## 6. Power BI
 
-1. Open `powerbi/RetailIntelligence.pbip` in Power BI Desktop.
-2. **Home → Refresh.** Credentials: *Microsoft account* → sign in with the Entra account that has
-   access to the database → Connect. Privacy level: *Organizational*.
-3. To use LocalDB instead: **Home → Transform data → Edit parameters**, set `Server` to
-   `(localdb)\MSSQLLocalDB` (Windows credentials).
+1. Open `powerbi/RetailIntelligence.pbip` in Power BI Desktop. The repository contains no data
+   (the import cache is git-ignored) and the `Server` parameter is a placeholder.
+2. **Home → Transform data → Edit parameters**: set `Server` to your Azure SQL server
+   (`AZURE_SQL_SERVER` in `.env`), or to `(localdb)\MSSQLLocalDB` for the local database.
+3. **Home → Refresh.** Azure SQL credentials: *Microsoft account* → sign in with the Entra account
+   that has access to the database → Connect. Privacy level: *Organizational*. LocalDB: Windows credentials.
+
+Changing the parameter rewrites `definition/expressions.tmdl`; do not commit that change
+(`git restore powerbi/RetailIntelligence.SemanticModel/definition/expressions.tmdl`).
 
 The model and pages are generated from code. To change them, close Power BI Desktop, edit
 `scripts/build_powerbi_model.py` or `scripts/build_powerbi_report.py`, run them, and reopen.

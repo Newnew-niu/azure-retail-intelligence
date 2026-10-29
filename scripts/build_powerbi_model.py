@@ -6,8 +6,10 @@ Writes definition/{database,model,expressions,relationships}.tmdl and definition
 Power BI Desktop must be CLOSED while this runs; reopen the .pbip afterwards and refresh.
 
 Model design
-  * Import mode from the dw star schema (Azure SQL by default; the Server/Database
-    parameters switch it to LocalDB). Load/run metadata columns are not imported.
+  * Import mode from the dw star schema. The committed Server parameter is a placeholder (no
+    real hostname in a public repository): set it in Power BI Desktop (Transform data -> Edit
+    parameters) to your Azure SQL server or (localdb)\\MSSQLLocalDB, or pass --server here and
+    do not commit the result. Load/run metadata columns are not imported.
   * Single-direction one-to-many relationships from dimensions to facts. The three facts
     are NOT related to each other: each measure lives on the fact of its own grain, so a
     category filter (product grain) can never silently multiply an order-level number.
@@ -25,7 +27,7 @@ from pathlib import Path
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_MODEL_DIR = PROJECT_ROOT / "powerbi" / "RetailIntelligence.SemanticModel"
-DEFAULT_SERVER = "your-server.database.windows.net"
+DEFAULT_SERVER = "your-server.database.windows.net"  # placeholder; see the module docstring
 DEFAULT_DATABASE = "retail_intelligence"
 NOT_SALES = '{"canceled", "unavailable"}'
 
@@ -291,7 +293,7 @@ def build(model_dir: Path, server: str, database: str) -> None:
     (definition / "model.tmdl").write_text("\n".join(model), encoding="utf-8", newline="\n")
 
     expressions = []
-    for param, value, description in [("Server", server, "SQL server: Azure SQL (default) or (localdb)\\MSSQLLocalDB"),
+    for param, value, description in [("Server", server, "SQL server: <name>.database.windows.net (Azure SQL) or (localdb)\\MSSQLLocalDB"),
                                       ("Database", database, "Database name")]:
         expressions += [f"/// {description}",
                         f'expression {param} = "{value}" meta [IsParameterQuery = true, Type = "Text", IsParameterQueryRequired = true]',
