@@ -174,17 +174,23 @@ local process, so the trust boundary is the machine. Exposing MCP over HTTP woul
 
 | Check | Local (Windows, Python 3.10) | GitHub Actions (Linux) | Azure |
 |---|:-:|:-:|:-:|
-| 278 tests: endpoints, tools, safety rules, auth, audit | ✅ all pass | not run yet | – |
+| 278 tests: endpoints, tools, safety rules, auth, audit | ✅ all pass | ✅ 254 pass, 24 skipped ¹ | – |
 | Golden numbers: API = SQL Server baseline = README | ✅ real export | skipped, no real data | – |
 | azuresql backend, T-SQL and translation | ✅ on LocalDB | fake connection only | ❌ **not run** |
 | Entra ID sign-in, `serving_reader.sql` | – | – | ❌ **not run** |
 | Each safety rule disabled to prove a test fails (40 changes) | ✅ all caught | – | – |
 | Live uvicorn with curl | ✅ | – | – |
 | 8 clients for 20 s: 4,065 requests, no server errors, audit intact | ✅ | – | – |
-| MCP over stdio with the SDK client | ✅ | not run yet | – |
+| MCP over stdio with the SDK client | ✅ | ✅ | – |
 | MCP with a real client (Claude Code), including the five questions | ✅ | – | – |
 | Claude Desktop | not tested | – | – |
-| Docker build, `/health`, read-only mount, SIGTERM | ❌ Docker not installed | not run yet | – |
+| Docker build, endpoints, read-only mount, clean SIGTERM stop | ❌ Docker not installed | ✅ synthetic data ² | – |
+| Docker with the real export | ❌ **not run** | – | – |
+
+¹ The 16 golden-number tests need the real export and the 8 LocalDB tests need SQL Server, so
+they skip on CI by design. ² `serving/tests/docker_smoke.sh`, in
+[this run](https://github.com/Newnew-niu/azure-retail-intelligence/actions/runs/42225796752):
+the container answered every check, kept no data in the image, and exited with code 0 on SIGTERM.
 
 Golden numbers run the same SQL text on both engines. `export_serving_db.py` runs it as T-SQL on
 LocalDB and saves the results, and the test runs it through the API on DuckDB. No expected value
@@ -196,8 +202,8 @@ is typed by hand.
 - **Windows exit error:** with DuckDB 1.4.4 to 1.5.6, a process that has imported `duckdb` prints
   `Fatal Python error: PyEval_SaveThread` when it receives `CTRL_BREAK`. DuckDB 1.3.2 did not. It
   happens only at exit, so a request in progress at that moment could be lost. It did not happen
-  under load. The cause inside DuckDB was not found. Version 1.5.6 is kept because DuckDB is a
-  security layer here.
+  under load, and the Linux container stopped cleanly on SIGTERM. The cause inside DuckDB was not
+  found. Version 1.5.6 is kept because DuckDB is a security layer here.
 - **SQL translation:** only the T-SQL paths in the tests were exercised. NULL ordering differs
   between engines, and some DuckDB functions may not translate exactly.
 - **Timeout, not memory limit:** a very large join can use a lot of memory before it is cancelled.
