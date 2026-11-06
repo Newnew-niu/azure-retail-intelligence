@@ -2,6 +2,7 @@
 import asyncio
 import json
 import os
+import subprocess
 import sys
 from pathlib import Path
 
@@ -115,8 +116,7 @@ def test_mcp_queries_are_audited_as_mcp(server, service):
 
 
 def test_the_server_works_over_real_stdio(settings):
-    """Starts `python -m serving.mcp.server` the way a client does. Anything stray on stdout
-    would corrupt the protocol, so this also proves stdout stays clean."""
+    """Starts `python -m serving.mcp.server` the way a client does."""
     parameters = StdioServerParameters(
         command=sys.executable, args=["-m", "serving.mcp.server"], cwd=PROJECT_ROOT,
         env={**os.environ, "SERVING_BACKEND": "duckdb", "SERVING_DUCKDB_PATH": str(settings.duckdb_path),
@@ -130,3 +130,17 @@ def test_the_server_works_over_real_stdio(settings):
     assert {tool.name for tool in tools.tools} == TOOLS
     assert payload(result)["rows"] == [{"orders": 1}, {"orders": 2}]
     assert json.loads(settings.audit_path.read_text(encoding="utf-8"))["client"] == "mcp"
+
+
+def test_stdout_carries_only_protocol_messages(settings):
+    """Read raw stdout, because the SDK client tolerates stray lines that other clients may not."""
+    initialize = {"jsonrpc": "2.0", "id": 1, "method": "initialize", "params": {
+        "protocolVersion": "2025-06-18", "capabilities": {},
+        "clientInfo": {"name": "test", "version": "1"}}}
+    process = subprocess.run(
+        [sys.executable, "-m", "serving.mcp.server"], input=json.dumps(initialize) + "\n",
+        capture_output=True, text=True, encoding="utf-8", timeout=30, cwd=PROJECT_ROOT,
+        env={**os.environ, "SERVING_BACKEND": "duckdb", "SERVING_DUCKDB_PATH": str(settings.duckdb_path),
+             "SERVING_AUDIT_PATH": str(settings.audit_path)})
+    messages = [json.loads(line) for line in process.stdout.splitlines()]  # fails on any stray text
+    assert messages and messages[0]["id"] == 1 and "result" in messages[0]
