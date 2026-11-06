@@ -98,6 +98,32 @@ an association, not proof of cause.
 - **Dashboard = SQL** – every Power BI card was checked against a value computed independently in SQL, and
   automated tests compare the web dashboard's calculations with SQL for the full period and a filtered slice.
 
+## Serving layer
+
+The warehouse also serves applications and AI agents. A [FastAPI service and an MCP
+server](serving/README.md) let them discover datasets, read their definitions, check data quality
+and run safe read-only SQL. Both call one shared core, so the safety rules cannot differ.
+
+```mermaid
+flowchart LR
+    A["Application"] --> API["FastAPI<br/>API key"]
+    B["AI agent"] --> M["MCP server<br/>stdio"]
+    API --> C["Shared core<br/>catalog · SQL guard · limits · audit"]
+    M --> C
+    C --> D[("DuckDB export (demo)")]
+    C --> E[("Azure SQL (production config)")]
+```
+
+- **Discoverable:** a catalog generated from the project docs gives every dataset's grain, source,
+  owner and column definitions.
+- **Safe by default:** SQL is parsed, not pattern-matched. Only one SELECT on catalog tables with
+  listed functions can run, on a read-only connection, with a row limit, a timeout and an audit log.
+- **Proven:** the 278 serving tests were checked by disabling each safety rule, and API results
+  equal the KPIs computed independently by SQL Server. A real MCP client answered the
+  [five demo questions](serving/README.md#five-questions-to-ask-an-agent).
+- **Honest scope:** the Azure SQL backend ran on LocalDB, **not on Azure**. See
+  [what was tested where](serving/README.md#what-was-tested-where).
+
 ## Tech stack
 
 | Area | Tools |
@@ -106,6 +132,7 @@ an association, not proof of cause.
 | Data | T-SQL stored procedures, star schema, incremental loads with watermarks, data quality checks |
 | Code | Python (pandas, pytest, Azure SDK), Bash + Azure CLI for provisioning |
 | Reporting | Power BI (DAX, semantic model generated as code); web dashboard (HTML, JavaScript, ECharts) |
+| Serving | FastAPI, Model Context Protocol (MCP), DuckDB, sqlglot, Docker |
 | Engineering | Git/GitHub, GitHub Actions + Pages, 125 automated tests, SQL Server LocalDB for local development |
 
 ---
@@ -122,6 +149,9 @@ an association, not proof of cause.
 | Data Factory orchestration, logging, failure handling | – | ✅ | ✅ ADF monitor |
 | Simulated monthly batches = full load | ✅ | not run ¹ | – |
 | Power BI refreshed from Azure SQL | – | – | ✅ |
+| Serving layer API, MCP and safety rules | ✅ also on GitHub Actions | not run | – |
+| Serving layer in Docker | ✅ GitHub Actions, synthetic data only | not run | – |
+| Serving layer on Azure SQL | ✅ on LocalDB | not run | – |
 
 ¹ The Azure database already holds the full load; replaying older batches into it would roll order
 statuses back. It needs a second database (future work). Power BI Service publishing needs a work or
@@ -158,7 +188,8 @@ infra/       create / delete the Azure resources
 scripts/     deployment, pipeline runners, batch simulation, Power BI generators
 powerbi/     Power BI project (model + report as text)
 dashboard/   web dashboard published to GitHub Pages
-tests/       automated tests
+serving/     FastAPI service, MCP server and their shared core
+tests/       automated tests for the pipeline, model and dashboard
 docs/        design documentation
 ```
 </details>
@@ -168,8 +199,8 @@ docs/        design documentation
 
 - The source is a one-off export, so incremental loading is shown with **simulated** batches, not
   real change data capture.
-- Next steps: scheduled triggers and alerts, CI on GitHub Actions, private networking for the
-  database, Power BI Service with row-level security, and Fabric or Databricks for much larger data.
+- Next steps: scheduled triggers and alerts, CI for the pipeline tests (the serving layer has its
+  own workflow), private networking for the database, Power BI Service with row-level security, and Fabric or Databricks for much larger data.
 </details>
 
 ## Documentation
@@ -182,6 +213,7 @@ docs/        design documentation
 | [Data dictionary](docs/data_dictionary.md) | Every table and column |
 | [Testing strategy](docs/testing_strategy.md) | Tests, quality checks, evidence |
 | [Design decisions](docs/design_decisions.md) | Why each choice, and the alternatives |
+| [Serving layer](serving/README.md) | API, MCP server, safety design, what was tested where |
 | [Deployment guide](docs/deployment_guide.md) | Step-by-step setup and clean-up |
 
 ---

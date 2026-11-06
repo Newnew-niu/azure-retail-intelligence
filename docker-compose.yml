@@ -1,0 +1,23 @@
+# Runs the API on the local DuckDB export, which is mounted read-only.
+#   SERVING_API_KEY=<key> docker compose up --build
+services:
+  api:
+    build: .
+    ports:
+      - "127.0.0.1:8000:8000"  # this machine only
+    environment:
+      SERVING_API_KEY: ${SERVING_API_KEY:?Set SERVING_API_KEY first}
+      SERVING_BACKEND: duckdb
+    volumes:
+      - ./data/serving.duckdb:/data/serving.duckdb:ro
+      - serving-audit:/var/log/serving
+    read_only: true
+    tmpfs:
+      - /tmp
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+
+volumes:
+  serving-audit:

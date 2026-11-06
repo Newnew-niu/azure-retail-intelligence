@@ -1,0 +1,110 @@
+# Hand-written input for scripts/build_serving_catalog.py. This list decides which datasets are
+# exposed, and it fills only what docs/data_dictionary.md does not say. Words only: no measured
+# numbers belong here.
+owner: Data Platform (portfolio project, Newnew-niu)
+
+reporting_window_note: >
+  The KPIs in the README cover this purchase date range only. The mart views cover all
+  dates, so totals summed over a mart view can differ from the README. To reproduce a
+  README KPI, filter dw facts on purchase_date_key, or mart.vw_sales_monthly on year_month.
+
+# Definitions for columns the data dictionary names without defining. A dataset's own `columns`
+# entry and the dictionary both win over this list.
+shared_columns:
+  order_id: Order identifier from the source
+  order_item_id: Position of the item within its order
+  payment_sequential: Position of the payment record within its order
+  product_key: Foreign key to dw.dim_product
+  seller_key: Foreign key to dw.dim_seller
+  customer_key: Foreign key to dw.dim_customer
+  purchase_date_key: Purchase date as yyyymmdd, foreign key to dw.dim_date
+  shipping_limit_date_key: Seller shipping deadline as yyyymmdd, foreign key to dw.dim_date
+  order_status: Order status, copied from the order so that rows can be filtered without a join
+  price: Item price in BRL, excluding freight
+  freight_value: Item freight in BRL
+  payment_type: Payment method (credit_card, boleto, voucher, debit_card, not_defined)
+  payment_installments: Number of installments of this payment record
+  payment_value: Payment amount in BRL
+  purchased_at: Purchase timestamp in Brazilian local time
+  delivered_customer_at: Timestamp of delivery to the customer, NULL if not delivered
+  year: Calendar year
+  quarter: Calendar quarter, 1 to 4
+  month: Calendar month, 1 to 12
+  day_of_month: Day of the month, 1 to 31
+  year_month: Purchase month as text, for example 2018-01
+  month_start: First day of the purchase month
+  sales_orders: Number of sales orders (status not canceled or unavailable)
+  customers: Distinct people, counted on customer_unique_id
+  items_sold: Number of order items sold
+  product_sales: Sum of item prices in BRL, excluding freight
+  freight: Sum of item freight in BRL
+  average_order_value: (Product sales + freight) / sales orders that have items, in BRL
+  customer_state: Two-letter state of the customer
+  delivered_orders: Number of delivered orders
+  avg_delivery_days: Mean days from purchase to customer delivery
+  avg_estimated_days: Mean days from purchase to the promised delivery date
+  late_rate: Share of delivered orders delivered after the promised date, from 0 to 1
+  avg_review_score: Mean of the per-order review score, orders with a review only
+  delivery_status: Delivery outcome (On time, Late, Not delivered)
+  orders: Number of distinct orders
+  reviewed_orders: Number of orders with at least one review
+  category_name_en: English category name; the Portuguese name when no translation exists
+  is_category_translated: 1 if the category has an English translation, otherwise 0
+  products: Number of distinct products sold
+  avg_item_price: Mean item price in BRL
+  seller_id: Seller identifier from the source
+  seller_state: Two-letter state of the seller
+  payment_records: Number of payment records
+  avg_installments: Mean number of installments per payment record
+
+datasets:
+  mart.vw_sales_monthly:
+    source: sql/mart/01_views.sql
+    description: Monthly sales KPIs by purchase month. Sales orders only. Use for sales trends.
+  mart.vw_delivery_by_state:
+    source: sql/mart/01_views.sql
+    description: Delivery speed, late rate and review score by customer state. Delivered orders only.
+  mart.vw_review_by_delivery_status:
+    source: sql/mart/01_views.sql
+    description: >
+      Review score by delivery outcome. Sales orders only. Descriptive: it shows an association,
+      not that lateness causes lower scores.
+  mart.vw_category_sales:
+    source: sql/mart/01_views.sql
+    description: >
+      Sales by product category at item level. Sales orders only. There is no order count because
+      one order can contain several categories.
+  mart.vw_seller_performance:
+    source: sql/mart/01_views.sql
+    description: Sales, delivery time and review score by seller. Sales orders only. Averages are item-weighted.
+  mart.vw_payment_mix:
+    source: sql/mart/01_views.sql
+    description: Payment value by payment type. Sales orders only.
+  dw.fact_orders:
+    source: sql/dw/01_tables.sql
+    description: >
+      One row per order with item, payment, review and delivery measures. Use for order counts and
+      delivery KPIs. Includes canceled and unavailable orders, so filter on order_status for sales KPIs.
+  dw.fact_order_items:
+    source: sql/dw/01_tables.sql
+    description: >
+      One row per order item. Use for product, category and seller analysis. Never join it to
+      fact_payments directly: both are many-per-order and totals would be double counted.
+  dw.fact_payments:
+    source: sql/dw/01_tables.sql
+    description: >
+      One row per payment record. Use for payment analysis. Never join it to fact_order_items
+      directly: both are many-per-order and totals would be double counted.
+  dw.dim_customer:
+    source: sql/dw/01_tables.sql
+    description: >
+      One row per customer_id, which Olist issues per order. Count DISTINCT customer_unique_id for people.
+  dw.dim_product:
+    source: sql/dw/01_tables.sql
+    description: Product attributes and category names. Key -1 is the Unknown member.
+  dw.dim_seller:
+    source: sql/dw/01_tables.sql
+    description: Seller location. Key -1 is the Unknown member.
+  dw.dim_date:
+    source: sql/dw/01_tables.sql
+    description: Calendar table. Join on date_key, which is an integer in yyyymmdd format.
