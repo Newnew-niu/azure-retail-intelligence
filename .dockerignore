@@ -1,0 +1,7 @@
+# Allow-list: everything is excluded unless named here, so data and secrets cannot reach the image.
+*
+!serving/
+serving/tests/
+serving/sql/
+serving/README.md
+**/__pycache__/
