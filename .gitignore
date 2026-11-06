@@ -33,4 +33,5 @@ Thumbs.db
 powerbi/**/.pbi/localSettings.json
 powerbi/**/.pbi/cache.abf
 
+# Power BI editor settings are local
 powerbi/**/.pbi/editorSettings.json
