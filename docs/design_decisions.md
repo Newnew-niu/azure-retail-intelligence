@@ -95,6 +95,29 @@ an unvalidated folder by mistake (observed: fails in 36 s instead of ~6 min).
 Import mode suits ~350k fact rows and avoids waking the serverless database on every visual.
 **Trade-off:** layout changes go through the generator, not drag-and-drop.
 
-### 15. Not used: Databricks, Synapse, Fabric, Snowflake
+### 15. One shared core for REST and MCP
+**Chosen:** `serving/core` holds the catalog, SQL guard, limits, audit log and database access.
+`serving/api` and `serving/mcp` only translate requests and errors.
+**Alternatives:** two separate services; or an MCP server that calls the REST API.
+**Why:** a safety rule that lives in one place cannot differ between clients, and one test suite
+covers both. Separate services would duplicate the most important code. Calling the API from MCP
+would add a network hop and a key to manage for no extra safety.
+**Trade-off:** core changes affect both clients at once, which is intended here.
+
+### 16. Parse SQL and sandbox the database, instead of trusting either
+**Chosen:** a default-deny sqlglot guard, plus a read-only DuckDB connection with external access off.
+**Alternatives:** a fixed set of metric endpoints; a regular-expression filter; the sandbox alone.
+**Why:** agents need ad-hoc questions, which fixed endpoints cannot answer. Regular expressions
+cannot understand nesting or quoting. The sandbox alone is not enough: DuckDB's `query()` function
+still runs, and only the guard enforces the catalog allow-list and row limit.
+**Trade-off:** the function allow-list refuses some harmless functions. The error says which one.
+
+### 17. DuckDB export for the demo
+**Chosen:** an exported, git-ignored file by default; Azure SQL by configuration.
+**Why:** anyone can run the demo without a cloud bill or a paused serverless database, and CI needs
+no cloud secret. The export stops if row counts or money totals differ from SQL Server.
+**Trade-off:** it is a snapshot, and the Azure SQL path has not been run on Azure.
+
+### 18. Not used: Databricks, Synapse, Fabric, Snowflake
 Out of scope by design: the data volume does not need distributed compute, and each would add cost
 and a second platform. They are the natural next step for much larger data or streaming sources.
