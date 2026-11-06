@@ -1,0 +1,10 @@
+# Runtime dependencies of the serving layer (pinned, tested on Python 3.10).
+# The azuresql backend also needs pyodbc and azure-identity from the root requirements.txt.
+duckdb==1.5.6
+sqlglot==30.29.0
+fastapi==0.162.0
+uvicorn==0.54.0
+mcp==2.3.0
+pydantic==2.14.3
+PyYAML==6.0.2
+python-dotenv==1.1.0
