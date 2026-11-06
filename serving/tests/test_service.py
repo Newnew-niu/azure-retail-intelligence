@@ -69,6 +69,26 @@ def test_a_caller_cannot_exceed_the_maximum_row_limit(settings):
     assert (result["row_count"], result["row_limit"], result["truncated"]) == (20, 20, True)
 
 
+def test_a_wrapped_union_respects_the_row_limit(service):
+    result = service.run_query("SELECT * FROM (SELECT payment_value FROM dw.fact_payments UNION ALL "
+                               "SELECT payment_value FROM dw.fact_payments) AS u", client="api", limit=60)
+    assert (result["row_count"], result["truncated"]) == (60, True)
+
+
+def test_repeated_column_names_do_not_lose_values(service):
+    result = service.run_query("SELECT 1 AS id, 2 AS id", client="api")
+    assert result["columns"] == ["id", "id_2"]
+    assert result["rows"] == [{"id": 1, "id_2": 2}]
+
+
+def test_values_without_a_json_form_are_converted(service):
+    result = service.run_query("SELECT CAST('nan' AS DOUBLE) AS a, CAST('infinity' AS DOUBLE) AS b, "
+                               "CAST('2018-01-02' AS TIMESTAMP) - CAST('2018-01-01' AS TIMESTAMP) AS c",
+                               client="api")
+    assert result["rows"][0]["a"] is None and result["rows"][0]["b"] is None
+    json.dumps(result, allow_nan=False)
+
+
 def test_the_default_limits_are_500_and_5000(service):
     assert (service.settings.default_row_limit, service.settings.max_row_limit) == (500, 5_000)
 

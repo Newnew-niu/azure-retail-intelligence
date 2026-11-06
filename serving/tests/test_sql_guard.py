@@ -63,7 +63,6 @@ def test_ordinary_analytical_queries_pass(sql):
     "SELECT order_id INTO stolen FROM dw.fact_orders",
     "SELECT order_id FROM dw.fact_orders FOR UPDATE",
     "WITH x AS (DELETE FROM dw.fact_orders RETURNING *) SELECT * FROM x",
-    "SELECT 1 UNION SELECT 2",
     "(SELECT 1)",
 ])
 def test_anything_but_a_plain_select_is_rejected(sql):
@@ -209,6 +208,24 @@ def test_select_into_a_catalog_table_is_rejected():
     """The target passes the allow-list, so only the INTO check can stop this one."""
     with pytest.raises(QueryRejected, match="SELECT INTO"):
         check("SELECT order_id INTO dw.dim_customer FROM dw.fact_orders")
+
+
+@pytest.mark.parametrize("sql", ["SELECT 1 UNION SELECT 2", "SELECT 1 UNION ALL SELECT 2",
+                                 "SELECT 1 INTERSECT SELECT 2", "SELECT 1 EXCEPT SELECT 2"])
+def test_a_top_level_set_operation_is_rejected_with_a_way_forward(sql):
+    with pytest.raises(QueryRejected, match="Wrap it"):
+        check(sql)
+
+
+def test_a_wrapped_union_passes_and_the_limit_covers_the_whole_result():
+    sql = check("SELECT * FROM (SELECT year_month FROM mart.vw_sales_monthly "
+                "UNION ALL SELECT year_month FROM mart.vw_sales_monthly) AS u")
+    assert sql.endswith(") AS u LIMIT 501")
+
+
+def test_every_branch_of_a_wrapped_union_is_checked():
+    with pytest.raises(QueryRejected, match="not in the catalog"):
+        check("SELECT * FROM (SELECT 1 UNION ALL SELECT check_name FROM ops.dq_result) AS u")
 
 
 def test_very_long_sql_is_rejected():

@@ -13,6 +13,10 @@ class QueryFailed(ServingError):
     """The database could not run an allowed query (for example, an unknown column)."""
 
 
+class DatabaseUnavailable(QueryFailed):
+    """The database could not be reached. Our fault, not the caller's."""
+
+
 class QueryTimedOut(ServingError):
     """The query ran longer than the configured timeout and was cancelled."""
 

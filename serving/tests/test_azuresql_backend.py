@@ -11,7 +11,7 @@ from pathlib import Path
 import pytest
 
 from serving.core.backends import AzureSqlBackend, create_backend, to_tsql
-from serving.core.errors import QueryFailed, QueryRejected, QueryTimedOut
+from serving.core.errors import DatabaseUnavailable, QueryFailed, QueryRejected, QueryTimedOut
 from serving.core.service import DataService
 from serving.core.sql_guard import validate_query
 
@@ -108,6 +108,16 @@ def test_a_driver_timeout_becomes_query_timed_out(fake_sql_server):
         AzureSqlBackend().execute("SELECT 1", 1, 5)
 
 
+def test_a_connection_failure_does_not_reveal_the_server(fake_sql_server, monkeypatch):
+    def refuse(autocommit):
+        raise RuntimeError("cannot reach secret-server.database.windows.net")
+    fake_sql_server()
+    monkeypatch.setattr(sys.modules["ingestion.db"], "connect", refuse)
+    with pytest.raises(DatabaseUnavailable) as caught:
+        AzureSqlBackend().execute("SELECT 1", 1, 5)
+    assert "secret-server" not in str(caught.value)
+
+
 @pytest.fixture(scope="module")
 def localdb_service(tmp_path_factory):
     if importlib.util.find_spec("pyodbc") is None:
@@ -140,6 +150,18 @@ def test_run_query_on_sql_server(localdb_service):
 def test_row_limit_on_sql_server(localdb_service):
     result = localdb_service.run_query("SELECT order_id FROM dw.fact_orders", client="api", limit=5)
     assert (result["row_count"], result["truncated"]) == (5, True)
+
+
+def test_a_wrapped_union_on_sql_server(localdb_service):
+    result = localdb_service.run_query(
+        "SELECT * FROM (SELECT year_month FROM mart.vw_sales_monthly UNION ALL "
+        "SELECT year_month FROM mart.vw_sales_monthly) AS u", client="api", limit=30)
+    assert (result["row_count"], result["truncated"]) == (30, True)
+
+
+def test_unnamed_columns_on_sql_server_keep_every_value(localdb_service):
+    result = localdb_service.run_query("SELECT COUNT(*), MAX(year_month) FROM mart.vw_sales_monthly", client="api")
+    assert len(result["rows"][0]) == 2
 
 
 def test_guard_still_applies_on_sql_server(localdb_service):

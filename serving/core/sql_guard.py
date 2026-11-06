@@ -50,6 +50,9 @@ def validate_query(sql: str, allowed_tables: frozenset[str], row_limit: int) -> 
     if len(statements) != 1:
         raise QueryRejected(f"Expected exactly one statement, found {len(statements)}")
     tree = statements[0]
+    if isinstance(tree, exp.SetOperation):
+        raise QueryRejected("UNION at the top level is not allowed. Wrap it so the row limit applies "
+                            "to the whole result: SELECT * FROM (... UNION ALL ...) AS u")
     if not isinstance(tree, exp.Select):
         raise QueryRejected(f"Only SELECT is allowed, found {type(tree).__name__.upper()}")
 

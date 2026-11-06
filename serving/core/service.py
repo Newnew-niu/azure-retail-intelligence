@@ -5,6 +5,7 @@ requests and errors.
 """
 from __future__ import annotations
 
+import math
 import time
 from datetime import date, datetime
 from decimal import Decimal
@@ -33,10 +34,28 @@ MAX_DQ_CHECKS = 200
 
 def json_safe(value: Any) -> Any:
     if isinstance(value, Decimal):
-        return float(value)
+        value = float(value)
+    if isinstance(value, float) and not math.isfinite(value):
+        return None  # JSON has no NaN or Infinity
+    if value is None or isinstance(value, (bool, int, float, str)):
+        return value
     if isinstance(value, (date, datetime)):
         return value.isoformat()
-    return value
+    return str(value)  # intervals and anything else without a JSON form
+
+
+def unique_names(columns: list[str]) -> list[str]:
+    """Rows are dicts, so a repeated column name would silently lose a value.
+
+    `a.id, b.id` becomes id, id_2. T-SQL leaves unaliased expressions unnamed.
+    """
+    seen: dict[str, int] = {}
+    names = []
+    for column in columns:
+        base = column or "column"
+        seen[base] = seen.get(base, 0) + 1
+        names.append(base if seen[base] == 1 else f"{base}_{seen[base]}")
+    return names
 
 
 def as_dicts(columns: list[str], rows: list[tuple]) -> list[dict]:
@@ -80,6 +99,7 @@ class DataService:
             self.audit.record(client, sql, "error", elapsed_ms(), reason=str(exc))
             raise
 
+        columns = unique_names(columns)
         result_rows = rows[:row_limit]
         duration_ms = elapsed_ms()
         self.audit.record(client, sql, "ok", duration_ms, row_count=len(result_rows))

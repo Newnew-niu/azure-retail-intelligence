@@ -13,7 +13,7 @@ from typing import Protocol
 import duckdb
 import sqlglot
 
-from serving.core.errors import QueryFailed, QueryTimedOut
+from serving.core.errors import DatabaseUnavailable, QueryFailed, QueryTimedOut
 
 
 def first_line(exc: Exception) -> str:
@@ -35,11 +35,14 @@ class DuckDBBackend:
 
     def connect(self) -> duckdb.DuckDBPyConnection:
         if not self.path.is_file():
-            raise QueryFailed(f"{self.path.name} not found. Run scripts/export_serving_db.py first.")
-        return duckdb.connect(str(self.path), read_only=True, config={
-            "enable_external_access": "false",
-            "lock_configuration": "true",  # a query cannot switch the setting back on
-        })
+            raise DatabaseUnavailable(f"{self.path.name} not found. Run scripts/export_serving_db.py first.")
+        try:
+            return duckdb.connect(str(self.path), read_only=True, config={
+                "enable_external_access": "false",
+                "lock_configuration": "true",  # a query cannot switch the setting back on
+            })
+        except duckdb.Error as exc:
+            raise DatabaseUnavailable("The DuckDB export could not be opened") from exc
 
     def execute(self, sql: str, max_rows: int, timeout_seconds: float) -> tuple[list[str], list[tuple]]:
         connection = self.connect()
@@ -82,7 +85,10 @@ class AzureSqlBackend:
         import pyodbc
         from ingestion import db
 
-        connection = db.connect(autocommit=False)
+        try:
+            connection = db.connect(autocommit=False)
+        except Exception as exc:  # pyodbc or Entra sign-in; the details can name the server
+            raise DatabaseUnavailable("Could not connect to Azure SQL") from exc
         connection.timeout = max(1, math.ceil(timeout_seconds))  # pyodbc query timeout, whole seconds
         try:
             cursor = connection.execute(to_tsql(sql))
