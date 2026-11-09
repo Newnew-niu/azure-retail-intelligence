@@ -189,7 +189,7 @@ local process, so the trust boundary is the machine. Exposing MCP over HTTP woul
 
 ¹ The 16 golden-number tests need the real export and the 8 LocalDB tests need SQL Server, so
 they skip on CI by design. ² `serving/tests/docker_smoke.sh`, in
-[this run](https://github.com/Newnew-niu/azure-retail-intelligence/actions/runs/42227356049):
+[this run](https://github.com/Newnew-niu/azure-retail-intelligence/actions/runs/42232564790):
 the container answered every check, kept no data in the image, and exited with code 0 on SIGTERM.
 
 Golden numbers run the same SQL text on both engines. `export_serving_db.py` runs it as T-SQL on
