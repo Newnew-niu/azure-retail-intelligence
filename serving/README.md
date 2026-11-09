@@ -28,7 +28,7 @@ The MCP server does not call an LLM. The agent's client turns a question into to
 | `core/catalog.py`, `catalog.yml` | Dataset metadata, which is also the allow-list |
 | `core/audit.py` | One JSON line per query attempt |
 | `api/`, `mcp/` | Thin front ends that translate requests and errors |
-| `sql/serving_reader.sql` | Least-privilege Azure SQL identity (not run) |
+| `sql/serving_reader.sql` | Least-privilege Azure SQL identity (permissions checked on Azure) |
 | `tests/` | Tests on a synthetic database, plus the Docker smoke test |
 
 ## What is exposed
@@ -175,9 +175,12 @@ local process, so the trust boundary is the machine. Exposing MCP over HTTP woul
 | Check | Local (Windows, Python 3.10) | GitHub Actions (Linux) | Azure |
 |---|:-:|:-:|:-:|
 | 278 tests: endpoints, tools, safety rules, auth, audit | ✅ all pass | ✅ 254 pass, 24 skipped ¹ | – |
-| Golden numbers: API = SQL Server baseline = README | ✅ real export | skipped, no real data | – |
-| azuresql backend, T-SQL and translation | ✅ on LocalDB | fake connection only | ❌ **not run** |
-| Entra ID sign-in, `serving_reader.sql` | – | – | ❌ **not run** |
+| Golden numbers: API = SQL Server baseline = README | ✅ real export | skipped, no real data | ✅ ³ |
+| azuresql backend, T-SQL and translation | ✅ on LocalDB | fake connection only | ✅ ³ |
+| Row counts and agent answers equal the DuckDB export | – | – | ✅ ³ |
+| Entra ID sign-in with `az login` (admin identity) | – | – | ✅ ³ |
+| `serving_reader.sql` permissions, through a test user | – | – | ✅ ³ |
+| Service connected as a real Entra reader identity | – | – | ❌ **not run** |
 | Each safety rule disabled to prove a test fails (40 changes) | ✅ all caught | – | – |
 | Live uvicorn with curl | ✅ | – | – |
 | 8 clients for 20 s: 4,065 requests, no server errors, audit intact | ✅ | – | – |
@@ -191,6 +194,14 @@ local process, so the trust boundary is the machine. Exposing MCP over HTTP woul
 they skip on CI by design. ² `serving/tests/docker_smoke.sh`, in
 [this run](https://github.com/Newnew-niu/azure-retail-intelligence/actions/runs/42232564790):
 the container answered every check, kept no data in the image, and exited with code 0 on SIGTERM.
+
+³ `scripts/verify_serving_azure.py`, run on 2026-11-09: 56 of 56 checks passed through the API on
+the real database. All 13 row counts, the six README numbers and the rows behind the first four
+questions matched the export exactly. For the fifth, Azure reported its latest Data Factory run, with
+the same data quality results as the export. For `serving_reader.sql`, a test
+user `WITHOUT LOGIN` received its grants and could read the catalog, but not `raw`, `stg`,
+`ops.*.error_message`, or write. All of it ran in a transaction that was rolled back. The service
+itself signed in as the database admin, so the reader identity limited the test user, not the service.
 
 Golden numbers run the same SQL text on both engines. `export_serving_db.py` runs it as T-SQL on
 LocalDB and saves the results, and the test runs it through the API on DuckDB. No expected value
@@ -210,6 +221,8 @@ is typed by hand.
 - **One shared API key:** there are no per-client identities, scopes or rate limits.
 - **SQL is read, not understood:** the guard cannot judge whether a query answers the question.
   An agent can still write a valid query that double counts, so the catalog warns about grain.
+- **Ordinal ORDER BY on Azure:** `ORDER BY 1` runs, but sqlglot warns that it cannot add the
+  NULLS LAST that DuckDB uses, so NULLs may sort differently. Order by column name instead.
 - **Azure sign-in:** `azure_cli` needs an `az login` session, so a hosted service would need a
   managed identity added to `ingestion/db.py`.
 - **`/health` is liveness only:** it does not touch the database.

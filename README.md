@@ -149,9 +149,9 @@ flowchart LR
 | Data Factory orchestration, logging, failure handling | – | ✅ | ✅ ADF monitor |
 | Simulated monthly batches = full load | ✅ | not run ¹ | – |
 | Power BI refreshed from Azure SQL | – | – | ✅ |
-| Serving layer API, MCP and safety rules | ✅ also on GitHub Actions | not run | – |
+| Serving layer API, MCP and safety rules | ✅ also on GitHub Actions | ✅ API and safety rules | – |
 | Serving layer in Docker | ✅ GitHub Actions, synthetic data only | not run | – |
-| Serving layer on Azure SQL | ✅ on LocalDB | not run | – |
+| Serving layer on Azure SQL, including the reader permissions | ✅ on LocalDB | ✅ 56 checks | – |
 
 ¹ The Azure database already holds the full load; replaying older batches into it would roll order
 statuses back. It needs a second database (future work). Power BI Service publishing needs a work or

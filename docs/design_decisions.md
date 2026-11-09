@@ -116,7 +116,8 @@ still runs, and only the guard enforces the catalog allow-list and row limit.
 **Chosen:** an exported, git-ignored file by default; Azure SQL by configuration.
 **Why:** anyone can run the demo without a cloud bill or a paused serverless database, and CI needs
 no cloud secret. The export stops if row counts or money totals differ from SQL Server.
-**Trade-off:** it is a snapshot, and the Azure SQL path has not been run on Azure.
+**Trade-off:** it is a snapshot. The Azure SQL path is checked by `scripts/verify_serving_azure.py`,
+which needs an `az login` session and resumes the paused database.
 
 ### 18. Not used: Databricks, Synapse, Fabric, Snowflake
 Out of scope by design: the data volume does not need distributed compute, and each would add cost

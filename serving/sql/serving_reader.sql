@@ -1,6 +1,7 @@
 /*
-    Least-privilege identity for the azuresql backend. NOT run by any script and NOT tested on
-    Azure: review it, replace the placeholder, and run it as the Entra admin of the database.
+    Least-privilege identity for the azuresql backend: review it, replace the placeholder, and run
+    it as the Entra admin of the database. scripts/verify_serving_azure.py checked these grants on
+    Azure SQL with a user WITHOUT LOGIN, rolled back; a real Entra identity has not been created.
 
     SQL Server has no read-only connection flag like DuckDB's, so this file is what stops a
     write if the SQL guard ever misses one. The identity can read the catalog datasets and the
