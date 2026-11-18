@@ -1,11 +1,13 @@
-# Publishes the static web dashboard (dashboard/) to GitHub Pages on every push to main.
-# The page reads the pre-aggregated dashboard/data.json; no database or secret is involved.
+# Publishes GitHub Pages on every push to main:
+#   /                 the static web dashboard (dashboard/), which reads the pre-aggregated data.json
+#   /seller-health/   the Seller Health web app (web/), which calls the hosted serving API
+# No secret is involved: the API URL is public and the seller endpoints need no key.
 name: Publish dashboard
 
 on:
   push:
     branches: [main]
-    paths: ["dashboard/**", ".github/workflows/pages.yml"]
+    paths: ["dashboard/**", "web/**", ".github/workflows/pages.yml"]
   workflow_dispatch:
 
 permissions:
@@ -17,6 +19,11 @@ concurrency:
   group: pages
   cancel-in-progress: true
 
+env:
+  # Printed by `bash infra/seller_api.sh url`. If the API is removed, the app shows that it
+  # cannot reach it; the dashboard is unaffected.
+  SELLER_API_URL: https://seller-api.gentlepond-f3a40cb0.francecentral.azurecontainerapps.io
+
 jobs:
   deploy:
     runs-on: ubuntu-latest
@@ -25,9 +32,27 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - name: Build Seller Health
+        working-directory: web
+        env:
+          VITE_API_BASE_URL: ${{ env.SELLER_API_URL }}
+        run: |
+          npm ci --ignore-scripts
+          npm run build
+      - name: Assemble the site
+        run: |
+          mkdir _site
+          cp -r dashboard/. _site/
+          cp -r web/dist _site/seller-health
+          test -f _site/index.html && test -f _site/data.json && test -f _site/seller-health/index.html
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:
-          path: dashboard
+          path: _site
       - id: deployment
         uses: actions/deploy-pages@v4
