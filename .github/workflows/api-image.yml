@@ -1,0 +1,45 @@
+# Tests the serving layer, then publishes the API image to GitHub Container Registry.
+# The image holds code only: the data is mounted at run time (see infra/seller_api.sh).
+# Deployment to Azure is a separate, manual step, so no Azure credential is stored in GitHub.
+name: API image
+
+on:
+  push:
+    paths:
+      - "serving/**"
+      - "Dockerfile"
+      - ".dockerignore"
+      - ".github/workflows/api-image.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+      - run: pip install -r serving/requirements-test.txt
+      - run: python -m pytest serving/tests
+      - name: Image name
+        run: echo "IMAGE=ghcr.io/${GITHUB_REPOSITORY,,}/serving-api" >> "$GITHUB_ENV"
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          tags: |
+            ${{ env.IMAGE }}:sha-${{ github.sha }}
+            ${{ github.ref == 'refs/heads/main' && format('{0}:latest', env.IMAGE) || '' }}
+          labels: |
+            org.opencontainers.image.source=https://github.com/${{ github.repository }}
+            org.opencontainers.image.description=Retail Intelligence serving API (code only, no data)
