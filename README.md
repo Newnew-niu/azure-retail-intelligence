@@ -200,7 +200,7 @@ flowchart LR
 | Seller KPIs = independent SQL, and = SQL Server | ✅ real export and LocalDB | – | – |
 | Seller Health web app: lint, types, 65 tests, build | ✅ also on GitHub Actions | – | ✅ in Chrome, local API |
 | API and web app together in Docker Compose | ✅ GitHub Actions, synthetic data only | – | – |
-| Web app on GitHub Pages calling the hosted API | – | not yet checked ³ | – |
+| Web app on GitHub Pages calling the hosted API | – | ✅ list and detail pages ³ | – |
 
 ¹ The Azure database already holds the full load; replaying older batches into it would roll order
 statuses back. It needs a second database (future work). Power BI Service publishing needs a work or
@@ -209,7 +209,8 @@ school licence, so the report is shared as a Power BI project file plus screensh
 ² `scripts/verify_seller_api.py`, run on 2026-11-18: every list and detail response was identical
 to the same request answered from the local export, bad parameters got 422, an unknown seller 404,
 the protected endpoints 401 without a key, and CORS allowed the GitHub Pages origin only.
-³ GitHub Pages publishes from `main`, so this is checked after the merge.
+³ Checked on 2026-11-18 after the merge, in headless Chrome: the published page at `/seller-health/`
+loaded a filtered, sorted seller list and a seller's detail page from the hosted API across origins.
 </details>
 
 <details>
