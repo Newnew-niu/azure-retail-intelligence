@@ -10,14 +10,17 @@ from __future__ import annotations
 import secrets
 
 from fastapi import Depends, FastAPI, HTTPException, Request, Security, status
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from fastapi.security import APIKeyHeader
 
 from serving.api.schemas import (DatasetDetail, DatasetSummary, ErrorResponse, Health, PipelineStatus,
                                  QueryRequest, QueryResponse)
+from serving.api.sellers import create_sellers_router
 from serving.core.config import Settings
 from serving.core.errors import (DatabaseUnavailable, DatasetNotFound, QueryFailed, QueryRejected,
-                                 QueryTimedOut, ServingError)
+                                 QueryTimedOut, SellerNotFound, ServingError)
+from serving.core.sellers import SellerService
 from serving.core.service import DataService
 
 API_KEY_HEADER = APIKeyHeader(name="X-API-Key", auto_error=False, description="Key from SERVING_API_KEY")
@@ -25,6 +28,7 @@ STATUS_BY_ERROR = {
     QueryRejected: status.HTTP_400_BAD_REQUEST,
     QueryFailed: status.HTTP_400_BAD_REQUEST,
     DatasetNotFound: status.HTTP_404_NOT_FOUND,
+    SellerNotFound: status.HTTP_404_NOT_FOUND,
     DatabaseUnavailable: status.HTTP_503_SERVICE_UNAVAILABLE,
     QueryTimedOut: status.HTTP_504_GATEWAY_TIMEOUT,
 }
@@ -40,6 +44,11 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     service = DataService(settings)
     app = FastAPI(title="Retail Intelligence Data API", version="1.0.0",
                   description="Discover and query the governed datasets of the retail warehouse.")
+    if settings.cors_origins:
+        # GET only and no custom headers: a browser page can read the public seller endpoints,
+        # but cannot send X-API-Key, so the protected endpoints stay out of reach from browsers.
+        app.add_middleware(CORSMiddleware, allow_origins=list(settings.cors_origins),
+                           allow_methods=["GET"], allow_headers=[])
 
     def require_api_key(key: str | None = Security(API_KEY_HEADER)) -> None:
         # compare_digest takes the same time wherever the strings differ, which stops timing
@@ -83,6 +92,10 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     def latest_run() -> dict:
         """Latest pipeline run and its data quality results."""
         return service.get_pipeline_status()
+
+    sellers = SellerService(service.backend, service.audit, service.catalog.content["reporting_window"],
+                            settings.query_timeout_seconds)
+    app.include_router(create_sellers_router(sellers))  # public: fixed queries only
 
     return app
 
