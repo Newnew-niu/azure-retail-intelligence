@@ -219,4 +219,4 @@ docs/        design documentation
 ---
 
 Data: *Brazilian E-Commerce Public Dataset by Olist* (Kaggle, CC BY-NC-SA 4.0); the CSV files are not
-committed ([data/README.md](data/README.md)). Non-commercial portfolio project.
+committed ([data/README.md](data/README.md)). Non-commercial project.
