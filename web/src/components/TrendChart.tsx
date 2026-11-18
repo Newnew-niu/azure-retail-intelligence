@@ -71,15 +71,16 @@ function Chart({ points, metric }: { points: Point[]; metric: Metric }) {
 export function TrendChart({ months }: { months: readonly SellerMonth[] }) {
   const [metricKey, setMetricKey] = useState<MetricKey>('product_sales')
   const groupName = useId()
+  const headingId = useId()
   const metric = METRICS.find((m) => m.key === metricKey) ?? METRICS[0]
   if (!metric) return null
   const points: Point[] = months.map((m) => ({ month: formatMonth(m.year_month), value: metricValue(m, metric.key) }))
   const monthsWithData = points.filter((p) => p.value !== null && (p.value !== 0 || SUMS.has(metric.key)))
 
   return (
-    <figure className="panel trend">
+    <figure className="panel trend" aria-labelledby={headingId}>
       <figcaption>
-        <h2>Monthly trend</h2>
+        <h2 id={headingId}>Monthly trend</h2>
         <p className="muted">{metric.description}.</p>
       </figcaption>
       <fieldset className="segmented">
