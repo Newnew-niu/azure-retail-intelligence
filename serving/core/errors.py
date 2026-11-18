@@ -23,3 +23,7 @@ class QueryTimedOut(ServingError):
 
 class DatasetNotFound(ServingError):
     """The dataset is not in the catalog."""
+
+
+class SellerNotFound(ServingError):
+    """The seller has no sales orders in the reporting window."""
