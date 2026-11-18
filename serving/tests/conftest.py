@@ -85,3 +85,17 @@ def service(settings) -> DataService:
 @pytest.fixture
 def fast_timeout_service(settings) -> DataService:
     return DataService(replace(settings, query_timeout_seconds=0.2))
+
+
+@pytest.fixture(scope="session")
+def seller_database(tmp_path_factory) -> Path:
+    from serving.tests.seller_data import build_seller_database
+    path = tmp_path_factory.mktemp("sellers") / "sellers.duckdb"
+    build_seller_database(path, CATALOG_PATH)
+    return path
+
+
+@pytest.fixture
+def seller_settings(seller_database, tmp_path) -> Settings:
+    return Settings(backend="duckdb", duckdb_path=seller_database, catalog_path=CATALOG_PATH,
+                    audit_path=tmp_path / "audit.jsonl", api_key="test-key", query_timeout_seconds=5.0)
