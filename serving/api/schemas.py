@@ -1,7 +1,7 @@
 """Request and response models. They also generate the documentation at /docs."""
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -82,3 +82,64 @@ class PipelineStatus(BaseModel):
 
 class ErrorResponse(BaseModel):
     detail: str
+
+
+SELLER_ID_PATTERN = r"^[0-9a-f]{32}$"
+
+
+class SellerKpis(BaseModel):
+    orders: int = Field(description="Sales orders that include the seller's items")
+    items_sold: int
+    product_sales: float = Field(description="Sum of item prices in BRL, excluding freight")
+    average_order_value: float | None = Field(description="Seller's price + freight per order, in BRL")
+    late_rate: float | None = Field(
+        description="Dispatched orders handed to the carrier after the shipping deadline / dispatched orders")
+    review_score: float | None = Field(description="Mean review score of orders with a review, 1 to 5")
+
+
+class SellerListItem(SellerKpis):
+    seller_id: str
+    seller_state: str | None
+
+
+class SellerPage(BaseModel):
+    items: list[SellerListItem]
+    page: int
+    page_size: int
+    total: int = Field(description="Sellers that match the filters")
+    total_pages: int
+    sort: str
+    order: str
+
+
+class SellerSummary(SellerKpis):
+    dispatched_orders: int
+    reviewed_orders: int
+
+
+class SellerMonth(SellerSummary):
+    year_month: str = Field(description="Purchase month, yyyy-mm")
+
+
+class HealthSignal(BaseModel):
+    key: Literal["sales_trend", "late_dispatch", "review_score"]
+    label: str
+    status: Literal["positive", "neutral", "attention", "insufficient_data"]
+    value: float | None = Field(description="Change, rate or score the status is based on")
+    summary: str = Field(description="The result in one sentence, with the numbers behind it")
+    rule: str = Field(description="The fixed rule and thresholds")
+
+
+class ReportingWindow(BaseModel):
+    first_month: str
+    last_month: str
+
+
+class SellerDetail(BaseModel):
+    seller_id: str
+    seller_state: str | None
+    window: ReportingWindow
+    summary: SellerSummary
+    monthly: list[SellerMonth] = Field(description="Every month of the window, zeros included")
+    signals: list[HealthSignal]
+    disclaimer: str

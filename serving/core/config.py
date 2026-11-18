@@ -24,6 +24,8 @@ class Settings:
     query_timeout_seconds: float = 10.0
     default_row_limit: int = DEFAULT_ROW_LIMIT
     max_row_limit: int = MAX_ROW_LIMIT
+    # Browser origins allowed to call the API (CORS), for example the seller web app. Empty: none.
+    cors_origins: tuple[str, ...] = ()
 
     @classmethod
     def from_env(cls) -> "Settings":
@@ -34,4 +36,6 @@ class Settings:
             audit_path=Path(os.getenv("SERVING_AUDIT_PATH", defaults.audit_path)),
             api_key=os.getenv("SERVING_API_KEY", ""),
             query_timeout_seconds=float(os.getenv("SERVING_QUERY_TIMEOUT", defaults.query_timeout_seconds)),
+            cors_origins=tuple(origin.strip() for origin in os.getenv("SERVING_CORS_ORIGINS", "").split(",")
+                               if origin.strip()),
         )

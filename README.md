@@ -16,6 +16,9 @@ dashboard reconciles back to the source data to the cent.
 ### 👉 [Open the live interactive dashboard](https://newnew-niu.github.io/azure-retail-intelligence/)
 *Filter by month and state in your browser – no Power BI or sign-in needed.*
 
+### 👉 [Open Seller Health](https://newnew-niu.github.io/azure-retail-intelligence/seller-health/)
+*Browse 3,029 marketplace sellers and assess one seller's performance: a React app on a hosted API.*
+
 ![Sales Performance dashboard](docs/images/sales.jpeg)
 
 | 📦 **1.55 M** raw rows from 9 source files | ✅ **125** automated tests, **28** data quality checks per run | 🎯 Reconciled **to the cent** from CSV to dashboard | 💶 Built and run for **under €1** (estimated) |
@@ -118,22 +121,63 @@ flowchart LR
   owner and column definitions.
 - **Safe by default:** SQL is parsed, not pattern-matched. Only one SELECT on catalog tables with
   listed functions can run, on a read-only connection, with a row limit, a timeout and an audit log.
-- **Proven:** the 278 serving tests were checked by disabling each safety rule, and API results
-  equal the KPIs computed independently by SQL Server. A real MCP client answered the
+- **Proven:** each safety rule was disabled once to prove a test fails (40 changes), and API
+  results equal the KPIs computed independently by SQL Server. A real MCP client answered the
   [five demo questions](serving/README.md#five-questions-to-ask-an-agent).
-- **Honest scope:** the Azure SQL backend ran on LocalDB, **not on Azure**. See
+- **Honest scope:** the Azure SQL backend passed 56 checks on the real database, but the service
+  has not yet run as the least-privilege reader identity. See
   [what was tested where](serving/README.md#what-was-tested-where).
+
+## Seller Health
+
+A web app for analysts at a company that finances marketplace sellers. They browse the 3,029
+sellers with sales in the reporting window, search, filter, sort and page through them, and open
+one seller to see its KPIs, a monthly trend and three health signals, each with the rule and the
+numbers behind it. The signals are illustrative rules, **not a credit score**.
+
+![Seller list](docs/images/seller_health_list.png)
+
+<details>
+<summary><b>See a seller's detail page</b></summary>
+
+![Seller detail](docs/images/seller_health_detail.png)
+</details>
+
+```mermaid
+flowchart LR
+    B["Browser"] --> P["React + TypeScript app<br/>GitHub Pages /seller-health/"]
+    P -->|"GET /sellers, /sellers/{id}<br/>public, CORS allow-list"| A["FastAPI on Azure Container Apps<br/>scales to zero"]
+    A --> C["serving/core<br/>fixed seller queries · signals · audit"]
+    C --> D[("DuckDB export<br/>Azure Files, read-only")]
+    O["openapi.json"] -. "generated TypeScript types" .-> P
+```
+
+- **No caller SQL:** the seller endpoints run fixed queries. Values are bound parameters, the sort
+  comes from an allow-list and pages hold at most 100 rows. `/query` still needs the API key.
+- **One set of numbers:** seller KPIs from the API equal independently written SQL on the export
+  and the same requests on SQL Server (LocalDB). The hosted API answered 23 of 23 checks with
+  responses identical to the local export.
+- **Typed end to end:** the web app's types are generated from the API's OpenAPI schema, and CI
+  fails if either side drifts.
+- **Tested:** 97 tests for the seller API and 65 for the web app (Vitest, Testing Library and a
+  mocked API), including loading, error and empty states and shareable URLs. Lint, type checks,
+  tests and the build run on every push. Controls are native buttons, links, inputs and radio
+  buttons, so they work from the keyboard, and no status is shown by colour alone.
+- **Honest scope:** the data is the exported snapshot; the first request after a quiet period waits
+  for the API to start (about 5 seconds when measured). Why each choice was made:
+  [Seller Health design decisions](docs/seller_health_decisions.md).
 
 ## Tech stack
 
 | Area | Tools |
 |---|---|
-| Cloud | Azure Data Factory, Azure Data Lake Storage Gen2, Azure SQL Database (serverless, free offer), Microsoft Entra ID, managed identity |
+| Cloud | Azure Data Factory, Azure Data Lake Storage Gen2, Azure SQL Database (serverless, free offer), Microsoft Entra ID, managed identity, Azure Container Apps |
 | Data | T-SQL stored procedures, star schema, incremental loads with watermarks, data quality checks |
 | Code | Python (pandas, pytest, Azure SDK), Bash + Azure CLI for provisioning |
 | Reporting | Power BI (DAX, semantic model generated as code); web dashboard (HTML, JavaScript, ECharts) |
 | Serving | FastAPI, Model Context Protocol (MCP), DuckDB, sqlglot, Docker |
-| Engineering | Git/GitHub, GitHub Actions + Pages, 125 automated tests, SQL Server LocalDB for local development |
+| Web app | React, TypeScript (strict), Vite, React Router, TanStack Query, Recharts, openapi-typescript |
+| Engineering | Git/GitHub, GitHub Actions + Pages, automated tests for the pipeline (125), serving layer (375) and web app (65: Vitest, Testing Library, MSW), SQL Server LocalDB for local development |
 
 ---
 
@@ -152,10 +196,20 @@ flowchart LR
 | Serving layer API, MCP and safety rules | ✅ also on GitHub Actions | ✅ API and safety rules | – |
 | Serving layer in Docker | ✅ GitHub Actions, synthetic data only | not run | – |
 | Serving layer on Azure SQL, including the reader permissions | ✅ on LocalDB | ✅ 56 checks | – |
+| Seller API: endpoints, validation, CORS, health signals | ✅ also on GitHub Actions | ✅ 23 checks on Container Apps ² | – |
+| Seller KPIs = independent SQL, and = SQL Server | ✅ real export and LocalDB | – | – |
+| Seller Health web app: lint, types, 65 tests, build | ✅ also on GitHub Actions | – | ✅ in Chrome, local API |
+| API and web app together in Docker Compose | ✅ GitHub Actions, synthetic data only | – | – |
+| Web app on GitHub Pages calling the hosted API | – | not yet checked ³ | – |
 
 ¹ The Azure database already holds the full load; replaying older batches into it would roll order
 statuses back. It needs a second database (future work). Power BI Service publishing needs a work or
 school licence, so the report is shared as a Power BI project file plus screenshots.
+
+² `scripts/verify_seller_api.py`, run on 2026-11-18: every list and detail response was identical
+to the same request answered from the local export, bad parameters got 422, an unknown seller 404,
+the protected endpoints 401 without a key, and CORS allowed the GitHub Pages origin only.
+³ GitHub Pages publishes from `main`, so this is checked after the merge.
 </details>
 
 <details>
@@ -171,6 +225,18 @@ python scripts/deploy_sql.py             # create the local database
 python scripts/run_local_pipeline.py     # validate -> load -> transform -> quality checks
 python -m pytest                         # 125 tests
 ```
+
+Seller Health, after `python scripts/export_serving_db.py` has written `data/serving.duckdb`:
+
+```bash
+SERVING_API_KEY=<key> docker compose up --build    # web app on http://127.0.0.1:8080, API on :8000
+
+# or without Docker, in two terminals
+SERVING_API_KEY=<key> uvicorn serving.api.main:app --port 8000
+cd web && npm ci && npm run dev                     # http://localhost:5173, /api is proxied
+```
+
+Hosting the API: `bash infra/seller_api.sh create <image>`; remove it with `bash infra/seller_api.sh delete`.
 
 Azure: `bash infra/provision.sh`, then follow [docs/deployment_guide.md](docs/deployment_guide.md).
 Clean up everything with `bash infra/cleanup.sh`.
@@ -189,6 +255,7 @@ scripts/     deployment, pipeline runners, batch simulation, Power BI generators
 powerbi/     Power BI project (model + report as text)
 dashboard/   web dashboard published to GitHub Pages
 serving/     FastAPI service, MCP server and their shared core
+web/         Seller Health web app (React, TypeScript)
 tests/       automated tests for the pipeline, model and dashboard
 docs/        design documentation
 ```
@@ -201,6 +268,9 @@ docs/        design documentation
   real change data capture.
 - Next steps: scheduled triggers and alerts, CI for the pipeline tests (the serving layer has its
   own workflow), private networking for the database, Power BI Service with row-level security, and Fabric or Databricks for much larger data.
+- Seller Health shows a snapshot, has no user sign-in or application-level rate limiting, and keeps
+  its audit log inside the container, so the log is lost when the API scales to zero. Health
+  signals use fixed thresholds that ignore category and seasonality.
 </details>
 
 ## Documentation
@@ -214,9 +284,10 @@ docs/        design documentation
 | [Testing strategy](docs/testing_strategy.md) | Tests, quality checks, evidence |
 | [Design decisions](docs/design_decisions.md) | Why each choice, and the alternatives |
 | [Serving layer](serving/README.md) | API, MCP server, safety design, what was tested where |
+| [Seller Health decisions](docs/seller_health_decisions.md) | Metric definitions, health signals, API access, front end, hosting |
 | [Deployment guide](docs/deployment_guide.md) | Step-by-step setup and clean-up |
 
 ---
 
 Data: *Brazilian E-Commerce Public Dataset by Olist* (Kaggle, CC BY-NC-SA 4.0); the CSV files are not
-committed ([data/README.md](data/README.md)). Non-commercial portfolio project.
+committed ([data/README.md](data/README.md)). Non-commercial project.

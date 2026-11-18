@@ -23,11 +23,12 @@ The MCP server does not call an LLM. The agent's client turns a question into to
 | Path | Purpose |
 |---|---|
 | `core/service.py` | The four operations and the query flow |
+| `core/sellers.py`, `core/health_signals.py` | Fixed seller queries and the health signal rules for Seller Health |
 | `core/sql_guard.py` | Checks every SQL string before any database sees it |
 | `core/backends.py` | DuckDB and Azure SQL connections |
 | `core/catalog.py`, `catalog.yml` | Dataset metadata, which is also the allow-list |
 | `core/audit.py` | One JSON line per query attempt |
-| `api/`, `mcp/` | Thin front ends that translate requests and errors |
+| `api/`, `mcp/` | Thin front ends that translate requests and errors; `api/sellers.py` is the seller router |
 | `sql/serving_reader.sql` | Least-privilege Azure SQL identity (permissions checked on Azure) |
 | `tests/` | Tests on a synthetic database, plus the Docker smoke test |
 
@@ -72,6 +73,13 @@ Interactive documentation is at <http://localhost:8000/docs>. It loads Swagger U
 | `GET /datasets/{name}` | Columns, definitions, grain, source, row count | 200 | 401, 404 |
 | `POST /query` | One read-only SELECT | 200 | 400 rejected or failed, 401, 422 invalid body, 503 database down, 504 timeout |
 | `GET /runs/latest` | Latest pipeline run and data quality | 200 | 401 |
+| `GET /sellers` | Sellers with KPIs: `page`, `page_size` (≤ 100), `state`, `q` (id prefix), `sort`, `order`; no key | 200 | 422 invalid parameter, 503, 504 |
+| `GET /sellers/{seller_id}` | One seller: KPIs, monthly trend, health signals; no key | 200 | 404 no sales in the window, 422 malformed id, 503, 504 |
+
+The seller endpoints run fixed, parameterised queries for the [Seller Health web app](../web), so
+they need no key; every other endpoint does. Browsers may call them from the origins listed in
+`SERVING_CORS_ORIGINS` (GET only, no custom headers). Definitions and the reasons are in
+[docs/seller_health_decisions.md](../docs/seller_health_decisions.md).
 
 ```bash
 curl -H "X-API-Key: <key>" localhost:8000/datasets/mart.vw_sales_monthly
@@ -82,13 +90,23 @@ curl -H "X-API-Key: <key>" -H "Content-Type: application/json" localhost:8000/qu
 curl -H "X-API-Key: <key>" -H "Content-Type: application/json" localhost:8000/query \
      -d '{"sql": "DROP TABLE dw.fact_orders"}'
 # 400 {"detail":"Only SELECT is allowed, found DROP"}
+
+curl "localhost:8000/sellers?state=RJ&sort=late_rate&order=asc&page_size=5"
+curl localhost:8000/sellers/4869f7a5dfa277a7dca6462dcf3b52b2
 ```
+
+After changing an endpoint or a response model, run `python scripts/export_openapi.py` and
+`npm run gen:api` in `web/`: the web app's TypeScript types come from that schema, and a test
+fails while `web/openapi.json` is out of date.
 
 ### Docker
 
 ```bash
-SERVING_API_KEY=<key> docker compose up --build
+SERVING_API_KEY=<key> docker compose up --build    # API on :8000, Seller Health web app on :8080
 ```
+
+The web container serves the built app with nginx and forwards `/api` to the API container, so
+the browser sees one origin and CORS is not needed.
 
 The image holds code only. `data/serving.duckdb` is mounted read-only, the container's own
 filesystem is read-only, it runs as a non-root user, and the port is published to this machine
@@ -189,6 +207,10 @@ local process, so the trust boundary is the machine. Exposing MCP over HTTP woul
 | Claude Desktop | not tested | – | – |
 | Docker build, endpoints, read-only mount, clean SIGTERM stop | ❌ Docker not installed | ✅ synthetic data ² | – |
 | Docker with the real export | ❌ **not run** | – | – |
+| Seller endpoints, signals, CORS: 97 tests | ✅ all pass | ✅ ⁴ | – |
+| Seller KPIs = independent SQL on the export, and = SQL Server | ✅ real export and LocalDB | skipped, no real data | – |
+| Docker Compose with the web app, through nginx | ❌ Docker not installed | ✅ synthetic data ² | – |
+| Hosted on Container Apps, responses identical to the export | – | – | ✅ ⁵ |
 
 ¹ The 16 golden-number tests need the real export and the 8 LocalDB tests need SQL Server, so
 they skip on CI by design. ² `serving/tests/docker_smoke.sh`, in
@@ -202,6 +224,15 @@ the same data quality results as the export. For `serving_reader.sql`, a test
 user `WITHOUT LOGIN` received its grants and could read the catalog, but not `raw`, `stg`,
 `ops.*.error_message`, or write. All of it ran in a transaction that was rolled back. The service
 itself signed in as the database admin, so the reader identity limited the test user, not the service.
+
+⁴ The serving workflow ran 344 tests and skipped 31 (golden numbers and LocalDB) on the branch
+that added the seller endpoints. Locally all 375 pass. On the development machine, the LocalDB
+comparison has twice been cancelled by its 60-second timeout in a full run and passed on the next
+run; the cause was not found.
+
+⁵ `scripts/verify_seller_api.py`, run on 2026-11-18 against `infra/seller_api.sh` on Azure
+Container Apps: 23 of 23 checks passed, including nine list requests and five seller details
+identical to the local export.
 
 Golden numbers run the same SQL text on both engines. `export_serving_db.py` runs it as T-SQL on
 LocalDB and saves the results, and the test runs it through the API on DuckDB. No expected value
@@ -226,3 +257,7 @@ is typed by hand.
 - **Azure sign-in:** `azure_cli` needs an `az login` session, so a hosted service would need a
   managed identity added to `ingestion/db.py`.
 - **`/health` is liveness only:** it does not touch the database.
+- **Public seller endpoints:** no per-user identity and no application-level rate limiting. The
+  hosted app allows one replica and the query timeout bounds each request.
+- **Audit log on Container Apps:** written inside the container, so it is lost when the app scales
+  to zero.

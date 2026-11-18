@@ -1,7 +1,7 @@
 # Hand-written input for scripts/build_serving_catalog.py. This list decides which datasets are
 # exposed, and it fills only what docs/data_dictionary.md does not say. Words only: no measured
 # numbers belong here.
-owner: Data Platform (portfolio project, Newnew-niu)
+owner: Data Platform (Newnew-niu)
 
 reporting_window_note: >
   The KPIs in the README cover this purchase date range only. The mart views cover all
