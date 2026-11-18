@@ -45,7 +45,7 @@ function Chart({ points, metric }: { points: Point[]; metric: Metric }) {
           {axis.xAxis}
           {axis.yAxis}
           {axis.tooltip}
-          <Bar dataKey="value" name={metric.label} fill="var(--series-1)" radius={[3, 3, 0, 0]} />
+          <Bar dataKey="value" name={metric.label} fill="var(--series-1)" radius={[3, 3, 0, 0]} isAnimationActive={false} />
         </BarChart>
       ) : (
         <LineChart data={points} margin={{ top: 8, right: 8, bottom: 0, left: 0 }}>
