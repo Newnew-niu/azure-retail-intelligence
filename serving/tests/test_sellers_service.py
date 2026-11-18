@@ -53,6 +53,11 @@ def test_missing_denominators_are_none_not_zero(sellers):
     assert by_id[C]["late_rate"] == 0.0
 
 
+def test_unavailable_orders_are_not_sales(sellers):
+    c = next(item for item in sellers.list_sellers()["items"] if item["seller_id"] == C)
+    assert (c["orders"], c["product_sales"]) == (1, 500.0)
+
+
 @pytest.mark.parametrize("sort, order, expected", [
     ("product_sales", "asc", [A2, B, C, A]),
     ("orders", "desc", [A, B, A2, C]),          # ties on 1 order are broken by seller id

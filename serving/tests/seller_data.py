@@ -8,7 +8,7 @@ Sellers (ids are 32 hex characters, like Olist's):
                          1 canceled order and 1 order before the window (both excluded)
   A2 'a' * 31 + 'b'  SP  1 order, shared with B, not dispatched yet
   B  'b' * 32        RJ  the shared order, plus 1 late order with review score 1
-  C  'c' * 32        MG  1 order, dispatched on time, no review
+  C  'c' * 32        MG  1 order, dispatched on time, no review; 1 unavailable order (excluded)
   D  'd' * 32        SP  only a canceled order and an order before the window: not listed
 """
 from __future__ import annotations
@@ -63,6 +63,7 @@ def seller_rows() -> Builder:
     b.order("shared", date(2018, 8, 20), [(A2, 20.0, 2.0), (B, 30.0, 3.0)], dispatch_days=None, review=4.0)
     b.order("b_2017", date(2017, 6, 1), [(B, 70.0, 7.0)], dispatch_days=6, review=1.0)
     b.order("c_2018", date(2018, 1, 5), [(C, 500.0, 50.0)], review=None)
+    b.order("c_unavailable", date(2018, 1, 9), [(C, 888.0, 8.0)], status="unavailable", dispatch_days=None)
     b.order("d_canceled", date(2018, 2, 1), [(D, 10.0, 1.0)], status="canceled", dispatch_days=None)
     b.order("d_2016", date(2016, 11, 1), [(D, 10.0, 1.0)])
     return b
