@@ -554,3 +554,7 @@ input[aria-invalid='true'] {
 .definitions dd {
   margin-left: 0;
 }
+
+.status-line {
+  margin: 0;
+}

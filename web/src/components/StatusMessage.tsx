@@ -1,11 +1,36 @@
 // The three non-data states every page needs: loading, error and empty.
-import type { ReactNode } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 
-export function LoadingState({ label }: { label: string }) {
+/** The hosted API scales to zero when idle, so the first request after a quiet spell is slow. */
+export const SLOW_HINT_AFTER_MS = 3000
+
+interface LoadingStateProps {
+  label: string
+  slowAfterMs?: number
+}
+
+export function LoadingState({ label, slowAfterMs = SLOW_HINT_AFTER_MS }: LoadingStateProps) {
+  const [slow, setSlow] = useState(false)
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      setSlow(true)
+    }, slowAfterMs)
+    return () => {
+      window.clearTimeout(timer)
+    }
+  }, [slowAfterMs])
+
   return (
     <div className="status status-loading" role="status" aria-live="polite">
       <span className="spinner" aria-hidden="true" />
-      {label}
+      <div>
+        <p className="status-line">{label}</p>
+        {slow && (
+          <p className="status-line muted">
+            The API starts on demand and can take a few seconds to wake up after a quiet period.
+          </p>
+        )}
+      </div>
     </div>
   )
 }
