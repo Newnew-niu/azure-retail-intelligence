@@ -1,5 +1,9 @@
 """Database backends. Both take DuckDB-dialect SQL and return (column names, rows).
 
+`params` fills `?` placeholders, in order, for the fixed queries in sellers.py. Caller SQL from
+run_query never has any. Placeholders must not be used for LIMIT or OFFSET: sqlglot turns
+`LIMIT ? OFFSET ?` into `OFFSET ? ... FETCH ?`, which would swap the two values on Azure SQL.
+
 DuckDB is the demo backend: it reads the exported file. Azure SQL is the production
 configuration: it reuses ingestion/db.py, including Entra ID sign-in.
 """
@@ -8,7 +12,7 @@ from __future__ import annotations
 import math
 import threading
 from pathlib import Path
-from typing import Protocol
+from typing import Protocol, Sequence
 
 import duckdb
 import sqlglot
@@ -23,7 +27,8 @@ def first_line(exc: Exception) -> str:
 class Backend(Protocol):
     name: str
 
-    def execute(self, sql: str, max_rows: int, timeout_seconds: float) -> tuple[list[str], list[tuple]]: ...
+    def execute(self, sql: str, max_rows: int, timeout_seconds: float,
+                params: Sequence = ()) -> tuple[list[str], list[tuple]]: ...
 
 
 class DuckDBBackend:
@@ -44,7 +49,8 @@ class DuckDBBackend:
         except duckdb.Error as exc:
             raise DatabaseUnavailable("The DuckDB export could not be opened") from exc
 
-    def execute(self, sql: str, max_rows: int, timeout_seconds: float) -> tuple[list[str], list[tuple]]:
+    def execute(self, sql: str, max_rows: int, timeout_seconds: float,
+                params: Sequence = ()) -> tuple[list[str], list[tuple]]:
         connection = self.connect()
         timed_out = threading.Event()
 
@@ -55,7 +61,7 @@ class DuckDBBackend:
         timer = threading.Timer(timeout_seconds, cancel)
         timer.start()
         try:
-            cursor = connection.execute(sql)
+            cursor = connection.execute(sql, list(params))
             columns = [column[0] for column in cursor.description]
             return columns, cursor.fetchmany(max_rows)
         except duckdb.Error as exc:
@@ -81,7 +87,8 @@ class AzureSqlBackend:
     name = "azuresql"
     TIMEOUT_SQLSTATE = "HYT00"
 
-    def execute(self, sql: str, max_rows: int, timeout_seconds: float) -> tuple[list[str], list[tuple]]:
+    def execute(self, sql: str, max_rows: int, timeout_seconds: float,
+                params: Sequence = ()) -> tuple[list[str], list[tuple]]:
         import pyodbc
         from ingestion import db
 
@@ -91,7 +98,7 @@ class AzureSqlBackend:
             raise DatabaseUnavailable("Could not connect to Azure SQL") from exc
         connection.timeout = max(1, math.ceil(timeout_seconds))  # pyodbc query timeout, whole seconds
         try:
-            cursor = connection.execute(to_tsql(sql))
+            cursor = connection.execute(to_tsql(sql), *params)
             columns = [column[0] for column in cursor.description]
             return columns, [tuple(row) for row in cursor.fetchmany(max_rows)]
         except pyodbc.Error as exc:
