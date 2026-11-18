@@ -9,11 +9,12 @@ import type { SellerListParams } from '../lib/listParams'
 interface Column {
   label: string
   sortKey?: SortKey
+  text?: boolean // left-aligned; numbers are right-aligned so digits line up
   render: (seller: SellerListItem) => string
 }
 
 const COLUMNS: readonly Column[] = [
-  { label: 'State', render: (s) => s.seller_state ?? '—' },
+  { label: 'State', text: true, render: (s) => s.seller_state ?? '—' },
   { label: 'Orders', sortKey: 'orders', render: (s) => formatCount(s.orders) },
   { label: 'Product sales', sortKey: 'product_sales', render: (s) => formatCurrency(s.product_sales) },
   { label: 'Avg order value', render: (s) => formatCurrency(s.average_order_value) },
@@ -45,7 +46,7 @@ export function SellerTable({ sellers, params, onSort, busy, listSearch }: Selle
               const ariaSort = active ? (params.order === 'asc' ? 'ascending' : 'descending') : undefined
               const sortKey = column.sortKey
               return (
-                <th key={column.label} scope="col" className="numeric" aria-sort={ariaSort}>
+                <th key={column.label} scope="col" className={column.text ? undefined : 'numeric'} aria-sort={ariaSort}>
                   {sortKey ? (
                     <button
                       type="button"
@@ -81,7 +82,7 @@ export function SellerTable({ sellers, params, onSort, busy, listSearch }: Selle
                 </Link>
               </th>
               {COLUMNS.map((column) => (
-                <td key={column.label} className="numeric">
+                <td key={column.label} className={column.text ? undefined : 'numeric'}>
                   {column.render(seller)}
                 </td>
               ))}
