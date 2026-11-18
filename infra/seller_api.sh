@@ -120,24 +120,30 @@ create() {
   az storage account create -g "$RESOURCE_GROUP" -n "$STORAGE_ACCOUNT" -l "$LOCATION" --sku Standard_LRS \
     --kind StorageV2 --min-tls-version TLS1_2 --allow-blob-public-access false --https-only true \
     --tags $TAGS -o none
-  az storage share-rm create -g "$RESOURCE_GROUP" --storage-account "$STORAGE_ACCOUNT" -n "$SHARE" --quota 1 -o none
+  if [[ $(az storage share-rm exists -g "$RESOURCE_GROUP" --storage-account "$STORAGE_ACCOUNT" -n "$SHARE" \
+          --query exists -o tsv) != "true" ]]; then
+    az storage share-rm create -g "$RESOURCE_GROUP" --storage-account "$STORAGE_ACCOUNT" -n "$SHARE" --quota 1 -o none
+  fi
   upload_data
 
-  step "Container Apps environment $ENVIRONMENT (Consumption, no Log Analytics)"
+  # ConsumptionOnly: newer CLI versions default to Express environments, which cannot mount storage.
+  step "Container Apps environment $ENVIRONMENT (Consumption only, no Log Analytics)"
   az containerapp env create -g "$RESOURCE_GROUP" -n "$ENVIRONMENT" -l "$LOCATION" \
-    --logs-destination none --tags $TAGS -o none
+    --environment-mode ConsumptionOnly --logs-destination none --tags $TAGS -o none
   az containerapp env storage set -g "$RESOURCE_GROUP" -n "$ENVIRONMENT" --storage-name "$ENV_STORAGE" \
     --azure-file-account-name "$STORAGE_ACCOUNT" --azure-file-account-key "$(storage_key)" \
     --azure-file-share-name "$SHARE" --access-mode ReadOnly -o none
 
   step "Container app $APP"
-  local spec api_key
+  local spec spec_path api_key
   spec=$(mktemp)
-  trap 'rm -f "$spec"' RETURN
+  trap 'rm -f "$spec"' RETURN EXIT  # EXIT too: set -e leaves without running RETURN traps
   chmod 600 "$spec"
   api_key=$(openssl rand -base64 32 | tr -d "/+=")
   app_yaml "$image" "$api_key" >"$spec"
-  az containerapp create -g "$RESOURCE_GROUP" -n "$APP" --yaml "$spec" -o none
+  # Git Bash on Windows: az is a Windows program, so it needs the Windows form of the temp path.
+  if command -v cygpath >/dev/null; then spec_path=$(cygpath -w "$spec"); else spec_path=$spec; fi
+  az containerapp create -g "$RESOURCE_GROUP" -n "$APP" --yaml "$spec_path" -o none
   url
 }
 
