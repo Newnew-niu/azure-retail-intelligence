@@ -37,6 +37,17 @@ curl --silent --header "X-API-Key: $SERVING_API_KEY" --header 'Content-Type: app
 docker compose exec -T api test -s /var/log/serving/serving_audit.jsonl
 docker compose exec -T api test ! -e /app/data  # no data was baked into the image
 
+# The web app: static files, the public seller endpoints and the key check, through nginx.
+WEB=http://127.0.0.1:8080
+expect_status 200 "$WEB/"
+curl --silent "$WEB/" | grep --quiet '<title>Seller Health</title>'
+expect_status 200 "$WEB/api/sellers"
+curl --silent "$WEB/api/sellers" | grep --quiet '"total":0'  # the synthetic database has no seller rows
+expect_status 422 "$WEB/api/sellers?sort=seller_id"
+expect_status 404 "$WEB/api/sellers/ffffffffffffffffffffffffffffffff"
+expect_status 401 --header 'Content-Type: application/json' --data '{"sql": "SELECT 1"}' "$WEB/api/query"
+curl --silent --head "$WEB/" | grep --quiet --ignore-case 'content-security-policy'
+
 # A clean stop: 137 would mean Docker had to kill it after the timeout.
 container=$(docker compose ps --all --quiet api)
 docker compose stop --timeout 10 api

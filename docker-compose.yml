@@ -1,5 +1,7 @@
-# Runs the API on the local DuckDB export, which is mounted read-only.
+# Runs the API on the local DuckDB export, which is mounted read-only, and the Seller Health web
+# app, which serves the front end and forwards /api to the API.
 #   SERVING_API_KEY=<key> docker compose up --build
+#   API: http://127.0.0.1:8000/docs   Web app: http://127.0.0.1:8080
 services:
   api:
     build: .
@@ -14,6 +16,21 @@ services:
     read_only: true
     tmpfs:
       - /tmp
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+
+  web:
+    build: ./web
+    ports:
+      - "127.0.0.1:8080:8080"  # this machine only
+    depends_on:
+      api:
+        condition: service_healthy
+    read_only: true
+    tmpfs:
+      - /tmp  # nginx keeps its pid file and temporary files here
     cap_drop:
       - ALL
     security_opt:
