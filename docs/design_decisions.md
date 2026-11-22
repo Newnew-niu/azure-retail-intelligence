@@ -122,3 +122,53 @@ which needs an `az login` session and resumes the paused database.
 ### 18. Not used: Databricks, Synapse, Fabric, Snowflake
 Out of scope by design: the data volume does not need distributed compute, and each would add cost
 and a second platform. They are the natural next step for much larger data or streaming sources.
+
+### 19. Revisiting #18: a PySpark lakehouse track
+**Chosen:** rebuild the money-critical part of the warehouse (orders, items, payments, with
+customers as a lookup) a second time in PySpark + Delta Lake, in a bronze / silver / gold
+layout, and prove it gives the same results as T-SQL. Code in `spark/`, evidence in
+[reports/spark_parity.md](../reports/spark_parity.md).
+**Why:** #18 is still true for this data volume, so this is not a migration. It does two things:
+- **Readiness for Fabric and Databricks.** Teams on those platforms build pipelines like
+  this one in PySpark notebooks on Delta tables. The package uses only Spark and Delta APIs
+  and one base path setting, and the versions match Fabric Runtime 2.0, so it is meant to
+  run unchanged on OneLake ([steps](spark_on_fabric.md), not yet run there).
+- **The model does not depend on the engine.** The project already requires LocalDB and
+  DuckDB to agree. A third engine with a different SQL dialect, different decimal rules and no
+  primary keys gives the same facts row for row, which shows that the grain, the no-fan-out
+  rule and the incremental design (#5, #8) are properties of the model, not of T-SQL.
+
+**How each warehouse rule was ported:**
+| T-SQL | Spark |
+|---|---|
+| Raw layer of NVARCHAR (#2) | Bronze: every column a string; `replaceWhere` replaces a rerun batch |
+| `TRY_CONVERT` + first `reject_reason` (#3) | Types and reasons generated from `source_schema.yml`, in column order, same wording; non-ANSI casts plus regular expressions where Spark is more lenient (`'1.5'` as an integer, `'1e5'` as a decimal) |
+| `ops.rejected_row` | `silver_quarantine`, with the raw values as JSON |
+| Change-only MERGE with `EXCEPT` (#4) | Delta MERGE whose update condition uses the null-safe `<=>` |
+| Watermark, rebuild affected orders in one transaction (#8) | Same watermark logic; the new version of each fact (untouched rows + rebuilt rows) is applied with **one** MERGE per table, so each fact changes in a single commit |
+| Primary keys | Explicit uniqueness checks in the DQ gate (Delta has no primary keys) |
+| `ops.usp_run_dq_checks` ERROR checks (#10) | `spark/quality.py`, results in `gold_dq_result` with the same columns |
+
+**Differences, on purpose:**
+- **Natural keys instead of surrogate keys.** IDENTITY values depend on the engine and the
+  load order, so no second engine can reproduce them. The gold facts carry `customer_id`,
+  `product_id` and `seller_id`; the parity check maps the SQL keys back to these.
+- **No transaction across tables.** Delta commits one table at a time. The watermark is saved
+  after the three fact commits; if a run stops in between, the next run rebuilds the same
+  orders again, and because a rebuild from silver is idempotent the result is the same.
+- **Rounding of averages.** For a DECIMAL average SQL Server truncates the last digit and Spark
+  rounds it, so `average_delivery_days` is 12.538482 in SQL Server and 12.538483 in Spark
+  from the identical SUM and COUNT. Counts and money are compared digit for digit; averages and
+  ratios may differ by one unit in the last shared decimal place, and the report shows the exact value.
+
+**Why T-SQL stays the production path:** it is deployed, orchestrated by ADF, feeds Power BI
+and the serving layer, and costs almost nothing. At ~100k orders a Spark cluster would add
+start-up time and cost, not speed: the full Spark load of three facts took 67.6 s on a 4-core
+Codespace, while the whole local T-SQL pipeline (all 9 sources) takes about a minute on the
+development laptop (testing strategy) – different machines, so only a rough comparison. Spark becomes the better
+choice when data no longer fits one database, or when the platform is Fabric or Databricks anyway.
+
+**Deliberately left out:** the other six sources (reviews, products, sellers, geolocation,
+category translation), dimensions and their Unknown members, `fact_orders`' review columns, the
+16 WARN checks, the marts, Power BI and the serving layer. Running in Fabric, Spark Structured
+Streaming and table maintenance (OPTIMIZE, VACUUM) are not part of this iteration.
