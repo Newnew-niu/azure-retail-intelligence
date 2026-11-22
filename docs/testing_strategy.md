@@ -44,9 +44,9 @@ says why), so `python -m pytest` on Windows still runs the 125 tests above.
 | `test_kpi_rules.py` | 2 | – | Counts and money must match digit for digit; an average may differ by one unit in the last shared decimal place |
 | `test_parity.py` | 2 | real data + DuckDB export | A full Spark load gives the six README KPIs of SQL Server and every fact row of the SQL Server export |
 
-GitHub Actions (`.github/workflows/spark.yml`) is set up to run the 16 fixture tests (not yet
-run: the branch has not been pushed); the 2 parity tests skip there because the licensed
-data is not committed. Results in a 4-core GitHub
+GitHub Actions (`.github/workflows/spark.yml`) runs the 16 fixture tests; the 2 parity tests
+skip there because the licensed data is not committed. First run on 2026-11-22: 16 passed,
+2 skipped in 6 min 47 s (Ubuntu, Java 17, Python 3.11). Results in a 4-core GitHub
 Codespace on 2026-11-22: 18 passed in 7 min 53 s.
 
 ### Spark parity evidence (`python -m spark.parity`, 2026-11-22)
@@ -138,7 +138,7 @@ lose nor invent anomalies.
 ## Not tested / limitations
 
 - The simulated batches were verified locally, not in Azure (see README).
-- The Spark track ran in a GitHub Codespace and is set up for GitHub Actions; it has not
+- The Spark track ran in a GitHub Codespace and on GitHub Actions (fixtures only); it has not
   been run in Microsoft Fabric ([steps](spark_on_fabric.md)). It covers three facts only.
 - ADF expressions are only tested by running them in Azure; there is no local ADF emulator.
 - No load or performance testing beyond the full dataset (~1.5 M raw rows; local full run ≈ 1 min,

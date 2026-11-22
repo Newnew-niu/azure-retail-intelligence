@@ -231,7 +231,7 @@ flowchart LR
 | Seller Health web app: lint, types, 65 tests, build | ✅ also on GitHub Actions | – | ✅ in Chrome, local API |
 | API and web app together in Docker Compose | ✅ GitHub Actions, synthetic data only | – | – |
 | Web app on GitHub Pages calling the hosted API | – | ✅ list and detail pages ³ | – |
-| Spark lakehouse: 16 fixture tests | ✅ Linux ⁴; GitHub Actions: not yet run | – | – |
+| Spark lakehouse: 16 fixture tests | ✅ Linux ⁴ and GitHub Actions | – | – |
 | Spark = SQL Server (rows and KPIs), Spark incremental = full | ✅ full data, Linux ⁴ | – | – |
 | Spark notebook in a Microsoft Fabric Lakehouse | – | not run (Fabric) | – |
 
