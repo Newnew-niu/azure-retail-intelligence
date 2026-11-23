@@ -35,3 +35,9 @@ powerbi/**/.pbi/cache.abf
 
 # Power BI editor settings are local
 powerbi/**/.pbi/editorSettings.json
+
+# PySpark lakehouse track: local Delta tables and Spark scratch folders
+lakehouse/
+spark-warehouse/
+metastore_db/
+derby.log

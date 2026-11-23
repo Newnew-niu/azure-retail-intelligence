@@ -11,6 +11,7 @@ dashboard reconciles back to the source data to the cent.
 ![Python](https://img.shields.io/badge/Python-3.10-3776AB?logo=python&logoColor=white)
 ![SQL](https://img.shields.io/badge/T--SQL-star_schema-CC2927?logo=microsoftsqlserver&logoColor=white)
 ![Power BI](https://img.shields.io/badge/Power_BI-DAX-F2C811?logo=powerbi&logoColor=black)
+![PySpark](https://img.shields.io/badge/PySpark-Delta_Lake-E25A1C?logo=apachespark&logoColor=white)
 ![Tests](https://img.shields.io/badge/tests-125_passing-2EA44F)
 
 ### 👉 [Open the live interactive dashboard](https://newnew-niu.github.io/azure-retail-intelligence/)
@@ -167,17 +168,46 @@ flowchart LR
   for the API to start (about 5 seconds when measured). Why each choice was made:
   [Seller Health design decisions](docs/seller_health_decisions.md).
 
+## v2: PySpark lakehouse track
+
+The money-critical part of the warehouse (orders, items, payments) is rebuilt a second time
+in **PySpark + Delta Lake**, in a bronze / silver / gold layout, and proven to give the same
+results as the T-SQL warehouse. T-SQL stays the production path; why both exist:
+[design decision #19](docs/design_decisions.md#19-revisiting-18-a-pyspark-lakehouse-track).
+
+```mermaid
+flowchart LR
+    A["📄 CSV batches"] --> B["Bronze<br/>text + lineage"]
+    B --> C["Silver<br/>typed from the contract<br/>rejects → quarantine"]
+    C --> D["Gold<br/>3 facts, rebuilt<br/>per changed order"]
+    D --> E["✅ DQ gate<br/>12 ERROR checks"]
+    E -. "parity" .-> F[("SQL Server facts<br/>and KPIs")]
+```
+
+- **Same rules, second engine:** types and reject reasons come from the same source contract,
+  per-order totals are aggregated before joining (no fan-out), and changed orders are applied
+  with Delta MERGE, so a rerun writes nothing.
+- **Proven equal:** on the full data, every row of the three Spark facts equals the SQL Server
+  facts (0 differing rows, money to the cent), the 9 simulated batches give the same tables
+  as one full load, and the README KPIs match the SQL Server baseline. Generated report:
+  [reports/spark_parity.md](reports/spark_parity.md).
+- **Runs where Spark runs:** one base path setting for a local folder or a OneLake path, no
+  Fabric-only APIs, versions of Fabric Runtime 2.0, and a notebook with a parameters cell.
+  The full load took 67.6 s and the 9 batches 286.3 s on a 4-core Linux machine.
+- **Honest scope:** three facts only, natural keys instead of surrogate keys, and not yet
+  run in Microsoft Fabric ([how it would run](docs/spark_on_fabric.md)).
+
 ## Tech stack
 
 | Area | Tools |
 |---|---|
 | Cloud | Azure Data Factory, Azure Data Lake Storage Gen2, Azure SQL Database (serverless, free offer), Microsoft Entra ID, managed identity, Azure Container Apps |
-| Data | T-SQL stored procedures, star schema, incremental loads with watermarks, data quality checks |
+| Data | T-SQL stored procedures, star schema, incremental loads with watermarks, data quality checks; PySpark and Delta Lake (medallion layout, MERGE) |
 | Code | Python (pandas, pytest, Azure SDK), Bash + Azure CLI for provisioning |
 | Reporting | Power BI (DAX, semantic model generated as code); web dashboard (HTML, JavaScript, ECharts) |
 | Serving | FastAPI, Model Context Protocol (MCP), DuckDB, sqlglot, Docker |
 | Web app | React, TypeScript (strict), Vite, React Router, TanStack Query, Recharts, openapi-typescript |
-| Engineering | Git/GitHub, GitHub Actions + Pages, automated tests for the pipeline (125), serving layer (375) and web app (65: Vitest, Testing Library, MSW), SQL Server LocalDB for local development |
+| Engineering | Git/GitHub, GitHub Actions + Pages, automated tests for the pipeline (125), Spark lakehouse (18), serving layer (375) and web app (65: Vitest, Testing Library, MSW), SQL Server LocalDB for local development |
 
 ---
 
@@ -201,6 +231,9 @@ flowchart LR
 | Seller Health web app: lint, types, 65 tests, build | ✅ also on GitHub Actions | – | ✅ in Chrome, local API |
 | API and web app together in Docker Compose | ✅ GitHub Actions, synthetic data only | – | – |
 | Web app on GitHub Pages calling the hosted API | – | ✅ list and detail pages ³ | – |
+| Spark lakehouse: 16 fixture tests | ✅ Linux ⁴ and GitHub Actions | – | – |
+| Spark = SQL Server (rows and KPIs), Spark incremental = full | ✅ full data, Linux ⁴ | – | – |
+| Spark notebook in a Microsoft Fabric Lakehouse | – | not run (Fabric) | – |
 
 ¹ The Azure database already holds the full load; replaying older batches into it would roll order
 statuses back. It needs a second database (future work). Power BI Service publishing needs a work or
@@ -211,6 +244,9 @@ to the same request answered from the local export, bad parameters got 422, an u
 the protected endpoints 401 without a key, and CORS allowed the GitHub Pages origin only.
 ³ Checked on 2026-11-18 after the merge, in headless Chrome: the published page at `/seller-health/`
 loaded a filtered, sorted seller list and a seller's detail page from the hosted API across origins.
+⁴ Run on 2026-11-22 in a 4-core GitHub Codespace (Ubuntu 24.04, Java 17, Python 3.11), since
+WSL2 could not be installed on the Windows development machine: 18 of 18 Spark tests passed and
+`python -m spark.parity` passed ([report](reports/spark_parity.md)).
 </details>
 
 <details>
@@ -237,6 +273,18 @@ SERVING_API_KEY=<key> uvicorn serving.api.main:app --port 8000
 cd web && npm ci && npm run dev                     # http://localhost:5173, /api is proxied
 ```
 
+PySpark lakehouse, on Linux or WSL2 (Spark does not run natively on Windows without extra
+Hadoop binaries). On Windows 11: `wsl --install -d Ubuntu-24.04` in an administrator
+PowerShell, restart, then inside Ubuntu:
+
+```bash
+sudo apt install -y openjdk-17-jdk-headless python3-venv
+python3 -m venv .venv-spark && . .venv-spark/bin/activate && pip install -r requirements-spark.txt
+python -m pytest tests/spark --confcutdir=tests/spark       # 16 fixture tests (+2 with the real data)
+python -m spark.run --mode full --data-dir data/raw --base-path lakehouse/full
+python -m spark.parity     # needs data/batches and the DuckDB export; writes reports/spark_parity.md
+```
+
 Hosting the API: `bash infra/seller_api.sh create <image>`; remove it with `bash infra/seller_api.sh delete`.
 
 Azure: `bash infra/provision.sh`, then follow [docs/deployment_guide.md](docs/deployment_guide.md).
@@ -250,6 +298,9 @@ Clean up everything with `bash infra/cleanup.sh`.
 config/      source file contract
 ingestion/   validator, data lake upload, local loader
 sql/         raw, staging, warehouse, quality, mart and ops layers
+spark/       PySpark + Delta Lake lakehouse: bronze, silver, gold, quality, parity
+notebooks/   Fabric-style notebook that calls spark/
+reports/     generated Spark parity report
 adf/         Data Factory pipelines (JSON)
 infra/       create / delete the Azure resources
 scripts/     deployment, pipeline runners, batch simulation, Power BI generators
@@ -257,7 +308,7 @@ powerbi/     Power BI project (model + report as text)
 dashboard/   web dashboard published to GitHub Pages
 serving/     FastAPI service, MCP server and their shared core
 web/         Seller Health web app (React, TypeScript)
-tests/       automated tests for the pipeline, model and dashboard
+tests/       automated tests for the pipeline, model, dashboard and Spark track
 docs/        design documentation
 ```
 </details>
@@ -268,7 +319,8 @@ docs/        design documentation
 - The source is a one-off export, so incremental loading is shown with **simulated** batches, not
   real change data capture.
 - Next steps: scheduled triggers and alerts, CI for the pipeline tests (the serving layer has its
-  own workflow), private networking for the database, Power BI Service with row-level security, and Fabric or Databricks for much larger data.
+  own workflow), private networking for the database, Power BI Service with row-level security, running the Spark track in Fabric, and porting
+  the remaining sources and dimensions to Spark if the data outgrows one database.
 - Seller Health shows a snapshot, has no user sign-in or application-level rate limiting, and keeps
   its audit log inside the container, so the log is lost when the API scales to zero. Health
   signals use fixed thresholds that ignore category and seasonality.
@@ -287,6 +339,8 @@ docs/        design documentation
 | [Serving layer](serving/README.md) | API, MCP server, safety design, what was tested where |
 | [Seller Health decisions](docs/seller_health_decisions.md) | Metric definitions, health signals, API access, front end, hosting |
 | [Deployment guide](docs/deployment_guide.md) | Step-by-step setup and clean-up |
+| [Spark on Fabric](docs/spark_on_fabric.md) | Running the Spark notebook in a Fabric Lakehouse (not yet run there) |
+| [Changelog](CHANGELOG.md) | v1 and v2 |
 
 ---
 

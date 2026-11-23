@@ -28,6 +28,50 @@ start of the session and dropped at the end; they are skipped automatically with
 `test_reconciliation.py` runs against Azure SQL with
 `SQL_SERVER=<server> SQL_AUTH=azure_cli python -m pytest tests/test_reconciliation.py`.
 
+## Spark lakehouse tests (18, `python -m pytest tests/spark --confcutdir=tests/spark`)
+
+Linux or WSL2 with Java 17 and `requirements-spark.txt`. One local SparkSession is shared by
+the session; every test gets an empty lakehouse folder and writes its own hand-made CSV
+batch. On a machine without PySpark or Java the folder is not collected (the pytest header
+says why), so `python -m pytest` on Windows still runs the 125 tests above.
+
+| File | Tests | Needs | What it proves |
+|---|---:|---|---|
+| `test_silver.py` | 4 | – | Bronze keeps text and adds lineage; rejects are quarantined with the staging reason and raw values; types and text normalisation as in staging; a newer batch updates a row |
+| `test_gold.py` | 4 | – | No fan-out with 3 items × 2 payments; an order without items or payments gets zeros; delivery days, late and status follow the SQL rules (including minute boundaries); item and payment facts carry the order's attributes |
+| `test_incremental.py` | 3 | – | A rerun writes 0 rows and makes no new Delta commit; a changed order rewrites only its own rows; batches in order = one full load |
+| `test_quality.py` | 3 | – | A clean load passes all 12 checks and records them; a doubled `items_price` in gold and a duplicated payment key each stop the run with the check's name |
+| `test_kpi_rules.py` | 2 | – | Counts and money must match digit for digit; an average may differ by one unit in the last shared decimal place |
+| `test_parity.py` | 2 | real data + DuckDB export | A full Spark load gives the six README KPIs of SQL Server and every fact row of the SQL Server export |
+
+GitHub Actions (`.github/workflows/spark.yml`) runs the 16 fixture tests; the 2 parity tests
+skip there because the licensed data is not committed. First run on 2026-11-22: 16 passed,
+2 skipped in 6 min 47 s (Ubuntu, Java 17, Python 3.11). Results in a 4-core GitHub
+Codespace on 2026-11-22: 18 passed in 7 min 53 s.
+
+### Spark parity evidence (`python -m spark.parity`, 2026-11-22)
+
+Generated into [reports/spark_parity.md](../reports/spark_parity.md) (PySpark 4.1.1, Delta
+Lake 4.2.0, 4-core Codespace):
+
+| Check | Result |
+|---|---|
+| Full load (data/raw), bronze → gold + DQ | 67.6 s; 99,441 / 112,650 / 103,886 rows in fact_orders / fact_order_items / fact_payments; DQ 12 of 12 PASS |
+| 9 SIMULATED batches, one by one | 286.3 s in total (30–33 s per batch); each batch rebuilt 7,979–10,676 changed orders after the first; DQ 12 of 12 PASS every batch |
+| Incremental = full | 0 differing rows in all three facts; money totals identical |
+| Rows = SQL Server (DuckDB export of `dw`, surrogate keys mapped to natural keys) | 0 differing rows in all three facts, every column including all money columns |
+| KPIs = SQL Server (`GOLDEN_KPIS` vs `data/serving_baseline.json`) | `sales_orders` 97,910 and `product_sales` 13,449,529.68 identical; the 4 averages and ratios within one unit of the last shared decimal place (see below) |
+| Rerun of the last batch on the finished tables | 0 orders rebuilt, 0 silver rows inserted or updated |
+
+`average_delivery_days` is 12.538482 in SQL Server and 12.538483 in Spark. The report shows
+why: SUM 1,206,239.64 / COUNT 96,203 = 12.5384825837… in both engines; SQL Server truncates
+the sixth decimal of a DECIMAL average, Spark rounds it.
+
+Replaying all 9 batches a second time on top of the finished tables rolls order statuses
+back to their older versions on the way (as in SQL, see README footnote 1), so those
+reruns are not 0-row; after the last batch the facts were again identical to the full load
+(0 differing rows), checked on 2026-11-22.
+
 ## Data quality checks in the pipeline (`ops.usp_run_dq_checks`)
 
 Run as the last step of every pipeline run; results in `ops.dq_result`.
@@ -89,10 +133,13 @@ lose nor invent anomalies.
 | DAX referencing a missing column / missing measure | Model test fails | Both caught |
 | Doubled `items_price` in `dw.fact_orders` | DQ step fails with the check name | `test_dq_error_check_fails_the_step_and_records_results` |
 | Forced a CHECK-constraint violation in a staging and a fact load | Rollback, FAILED log, re-throw, watermark unchanged | Covered by tests |
+| Spark: joined items to payments before aggregating in `gold.build_fact_orders` (2026-11-22) | `test_no_fan_out_with_several_items_and_payments` fails | Failed: the run stopped with `DataQualityError: ... fact_orders_items_price_matches_stg (1)`; reverted, file identical to the committed one (md5), test passes again |
 
 ## Not tested / limitations
 
 - The simulated batches were verified locally, not in Azure (see README).
+- The Spark track ran in a GitHub Codespace and on GitHub Actions (fixtures only); it has not
+  been run in Microsoft Fabric ([steps](spark_on_fabric.md)). It covers three facts only.
 - ADF expressions are only tested by running them in Azure; there is no local ADF emulator.
 - No load or performance testing beyond the full dataset (~1.5 M raw rows; local full run ≈ 1 min,
   ADF run 5–8 min with 2 DIU per copy).
