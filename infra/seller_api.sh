@@ -27,6 +27,12 @@ WEB_ORIGIN="${SELLER_API_CORS_ORIGIN:-https://newnew-niu.github.io}"
 DATA_FILE="data/serving.duckdb"
 TAGS="project=retail-intelligence component=seller-health"
 
+# EU data residency (GOVERNANCE.md C17): refuse a region that is not in infra/approved_regions.txt.
+if ! sed -e 's/#.*//' -e 's/[[:space:]]//g' "$(dirname "$0")/approved_regions.txt" | grep -qx "$LOCATION"; then
+  echo "Region '$LOCATION' is not approved for this platform's data (infra/approved_regions.txt)." >&2
+  exit 1
+fi
+
 SUBSCRIPTION_ID=$(az account show --query id -o tsv)
 SUFFIX=$(printf '%s' "$SUBSCRIPTION_ID" | md5sum | cut -c1-6)
 STORAGE_ACCOUNT="stsellerhealth${SUFFIX}"

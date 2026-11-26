@@ -17,6 +17,12 @@ SQL_DATABASE="${SQL_DATABASE_NAME:-retail_intelligence}"
 BUDGET_EUR="${BUDGET_EUR:-10}"
 TAGS="project=retail-intelligence env=dev"
 
+# EU data residency (GOVERNANCE.md C17): refuse a region that is not in infra/approved_regions.txt.
+if ! sed -e 's/#.*//' -e 's/[[:space:]]//g' "$(dirname "$0")/approved_regions.txt" | grep -qx "$LOCATION"; then
+  echo "Region '$LOCATION' is not approved for this platform's data (infra/approved_regions.txt)." >&2
+  exit 1
+fi
+
 SUBSCRIPTION_ID=$(az account show --query id -o tsv)
 # Short, stable suffix so globally unique names are the same on every rerun
 SUFFIX=$(printf '%s' "$SUBSCRIPTION_ID" | md5sum | cut -c1-6)
