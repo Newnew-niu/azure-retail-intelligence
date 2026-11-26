@@ -64,7 +64,7 @@ No passwords or keys are used anywhere except where marked. *Verified* says how 
 | Identity | Authenticates with | Can access | Permissions | Why this much and no more | Evidence | Verified |
 |---|---|---|---|---|---|---|
 | **Developer** (signed-in `az login` user) | Microsoft Entra ID, CLI token | Storage account; SQL server and database; Data Factory; Container Apps group | *Storage Blob Data Contributor* on the account (uploads); **Entra admin** of the SQL server; owner-level rights on the resource groups | Builds and deploys everything. This is the broadest identity and is not separated from the others (G10). | [infra/provision.sh](infra/provision.sh), [docs/architecture.md](docs/architecture.md#security) | ✅ Used for every deployment |
-| **Data Factory** (system-assigned managed identity) | Microsoft Entra ID, managed identity | Storage account (read); SQL schemas `raw`, `stg`, `dw`, `ops` | *Storage Blob Data Reader* on the account only. SQL: `SELECT, INSERT, DELETE` on `raw`; `EXECUTE` on `stg`, `dw`, `ops`. No direct table access to `stg`/`dw`/`mart`, no DDL. | Copies a batch into `raw` (pre-copy delete + insert) and runs procedures; ownership chaining covers the tables the procedures touch. | [sql/security/adf_access.sql](sql/security/adf_access.sql), [infra/provision.sh](infra/provision.sh) | ✅ Pipeline runs succeed with these grants. ❌ No negative test that it cannot read `dw` directly. |
+| **Data Factory** (system-assigned managed identity) | Microsoft Entra ID, managed identity | Storage account (read); SQL schemas `raw`, `stg`, `dw`, `ops` | *Storage Blob Data Reader* on the account only. SQL: `SELECT, INSERT, DELETE` on `raw`; `EXECUTE` on `stg`, `dw`, `ops`. No direct table access to `stg`/`dw`/`mart`, no DDL. | Copies a batch into `raw` (pre-copy delete + insert) and runs procedures; ownership chaining covers the tables the procedures touch. | [sql/security/adf_access.sql](sql/security/adf_access.sql), [infra/provision.sh](infra/provision.sh) | ✅ Pipeline runs succeed with these grants. ✅ 2026-11-26: holds exactly the 7 approved grants and nothing else (C19). |
 | **Serving reader** (Entra identity for the `azuresql` backend) | Microsoft Entra ID | 13 catalog datasets; 7 columns of `ops.pipeline_run`; 8 columns of `ops.dq_result` | `SELECT` only, object by object | An API or agent needs exactly the catalog. `raw`, `stg`, other `ops` tables and `error_message` are excluded. | [serving/sql/serving_reader.sql](serving/sql/serving_reader.sql) | ✅ Grant list = catalog (`serving/tests/test_catalog.py`). ✅ 2026-11-09 on Azure SQL: a `WITHOUT LOGIN` test user with these grants could read the catalog and could not read `raw`, `stg`, `error_message` or write ([scripts/verify_serving_azure.py](scripts/verify_serving_azure.py), rolled back). ❌ **The real identity has not been created** (G1). |
 | **API caller** (application or agent with the key) | `X-API-Key` header, compared in constant time | `/datasets`, `/query`, `/runs/latest` | Read-only SQL through the guard, ≤ 5,000 rows, 10 s timeout | One shared key for trusted callers; the API refuses every request when no key is configured. | [serving/README.md](serving/README.md#safety-design) | ✅ 375 serving tests pass (2026-11-26, local) |
 | **MCP client** (local agent) | None: started as a local stdio process | Same tools as the API | Same guard and limits | The trust boundary is the machine. | [serving/mcp/server.py](serving/mcp/server.py) | ✅ SDK client on CI; real client locally |
@@ -82,9 +82,9 @@ Every control's owner is Data Platform (Newnew-niu).
 
 | ID | Control | Objective | Type | Frequency | Implementation | Evidence of operation | Last test and result |
 |---|---|---|---|---|---|---|---|
-| C01 | Source contract validation | No file with wrong columns, types or formats reaches the cloud | P | Every upload | [ingestion/](ingestion), [config/source_schema.yml](config/source_schema.yml) | `_validation_report.json` next to each batch in ADLS | 2026-11-26 local: `pytest` 125 passed, including the broken-file tests in `tests/test_validate_files.py` |
+| C01 | Source contract validation | No file with wrong columns, types or formats reaches the cloud | P | Every upload | [ingestion/](ingestion), [config/source_schema.yml](config/source_schema.yml) | `_validation_report.json` next to each batch in ADLS | 2026-11-26 local: `pytest` 142 passed, including the broken-file tests in `tests/test_validate_files.py` |
 | C02 | Validation gate in Data Factory | A batch without a validation report cannot be loaded | P | Every run | `pl_olist_load_raw_and_stg` GetMetadata + Fail activity ([adf/](adf)) | ADF monitor: `BATCH_NOT_VALIDATED` | Observed in Azure: failure in ~36 s ([design decision 13](docs/design_decisions.md#13-validation-gate-before-the-cloud-and-inside-adf)) |
-| C03 | Data quality gate: 12 ERROR checks | Reconciliation, validity and consistency failures stop the run before any report reads the data | P | Every run | [sql/quality/usp_run_dq_checks.sql](sql/quality/usp_run_dq_checks.sql) | One row per check per run in `ops.dq_result` | 2026-11-26 local: `pytest` 125 passed (`tests/test_dw_sql.py`, `tests/test_reconciliation.py`). 2026-11-09 Azure: latest run's results read back through the API |
+| C03 | Data quality gate: 12 ERROR checks | Reconciliation, validity and consistency failures stop the run before any report reads the data | P | Every run | [sql/quality/usp_run_dq_checks.sql](sql/quality/usp_run_dq_checks.sql) | One row per check per run in `ops.dq_result` | 2026-11-26 local: `pytest` 142 passed (`tests/test_dw_sql.py`, `tests/test_reconciliation.py`). 2026-11-09 Azure: latest run's results read back through the API |
 | C04 | 16 WARN checks | Known source anomalies are measured every run, so a change in them is visible | D | Every run | same procedure | `ops.dq_result` | as C03 |
 | C05 | Run and step logging | Every load can be traced from `ops` to the ADF monitor and back | D | Every run | [sql/ops/](sql/ops); `run_id` = ADF pipeline run ID | `ops.pipeline_run`, `ops.step_log`, `ops.rejected_row` | ✅ Checked by hand in the ADF monitor |
 | C06 | Incremental = full load | Incremental loading never drifts from a full rebuild | D | On a change to the load logic | [scripts/verify_incremental.py](scripts/verify_incremental.py); Spark: `python -m spark.parity` | [reports/spark_parity.md](reports/spark_parity.md) | 0 differing rows across 22 tables and views (LocalDB); Spark parity 2026-11-22 |
@@ -98,8 +98,9 @@ Every control's owner is Data Platform (Newnew-niu).
 | C14 | API authentication and CORS | Only key holders run SQL; only the published web app calls the API from a browser | P | Every request | [serving/api/main.py](serving/api/main.py), [infra/seller_api.sh](infra/seller_api.sh) | 401 / CORS rejection | 2026-11-18 Azure: protected endpoints 401 without a key; CORS allowed the Pages origin only |
 | C15 | Fixed seller queries | Public callers choose values, never SQL | P | Every request | [serving/core/sellers.py](serving/core/sellers.py) | – | 97 seller tests pass; 2026-11-18 Azure 23/23 |
 | C16 | Dashboard = SQL | Published numbers equal the warehouse | D | Every commit | `tests/test_dashboard.py` | – | 2026-11-26 local: passed |
-| C17 | EU region | Data is stored in an EU region only | P (inherited) | On deployment | Default `francecentral` in both infra scripts; the subscription's *Allowed locations* policy, which the project does not own | – | **Not an owned control yet**: an override of `AZURE_LOCATION` would not be checked (G6) |
+| C17 | EU region | Data is stored in an EU region only | P | Every deployment | [infra/approved_regions.txt](infra/approved_regions.txt) (EU regions only); both infra scripts refuse any other `AZURE_LOCATION`; [infra/residency_policy.sh](infra/residency_policy.sh) assigns the built-in *Allowed locations* policies for resources and resource groups on the subscription | Azure Policy denials (`RequestDisallowedByPolicy`) | 2026-11-26 Azure: a resource group in `norwayeast` was denied by `eu-residency-groups`; a storage account in `norwayeast` failed validation on `eu-residency-resources`, while `francecentral` passed. Local: `tests/test_governance.py` runs the script guard in bash |
 | C18 | Budget alert | A cost overrun is noticed within a day | D | Daily (Azure Cost Management) | [infra/provision.sh](infra/provision.sh): EUR 10 / month, alerts at 50, 80, 100 % and forecast 100 % | Alert emails | Not triggered so far |
+| C19 | Access and residency review | Every resource is in an approved region, the EU-only policy is in force, data is encrypted at rest, and every database principal holds exactly the grants in the committed security scripts | D | On demand; intended monthly, with sign-off | [scripts/access_review.py](scripts/access_review.py), [governance/](governance) | [reports/access_review.md](reports/access_review.md), redacted, with a reviewer sign-off table | 2026-11-26 Azure: regions, policy and encryption PASS; SQL auditing WARN (G7); grants: Data Factory 7 of 7 approved, nothing extra, no unknown principals or role members; serving reader WARN (G1) |
 
 ---
 
@@ -149,12 +150,12 @@ A record in the shape the article asks for, for the one processing activity:
 | Measure | Status | Evidence |
 |---|---|---|
 | Encryption in transit | ✅ TLS 1.2 minimum on storage, SQL and the Container Apps storage account; HTTPS only; Container Apps ingress with `allowInsecure: false` | [infra/provision.sh](infra/provision.sh), [infra/seller_api.sh](infra/seller_api.sh) |
-| Encryption at rest | ⚠️ Azure Storage encryption and Azure SQL Transparent Data Encryption are on by default for new resources; the project relies on these defaults and does not check them (G13) | – |
+| Encryption at rest | ✅ Azure Storage encryption (blob and file) and Azure SQL Transparent Data Encryption, checked on every access review | C19 |
 | Pseudonymisation | ✅ Source ids are already pseudonymous | section 1 |
 | Access control | ✅ Entra ID for every human and service identity; least-privilege grants | section 2 |
 | Audit logging | ⚠️ Pipeline runs in `ops` and the ADF monitor; queries in the serving audit log. Azure SQL auditing is not enabled (G7) and the hosted audit log is lost on restart (G2) | C05, C13 |
 | Availability and recovery | ⚠️ Azure SQL automatic backups (locally redundant); the pipeline can rebuild every layer from the ADLS files | [infra/provision.sh](infra/provision.sh) |
-| Regular testing | ✅ 125 pipeline, 375 serving, 18 Spark and 65 web tests; serving, Spark and web suites run on GitHub Actions | section 3 |
+| Regular testing | ✅ 142 pipeline, 375 serving, 18 Spark and 65 web tests; serving, Spark and web suites run on GitHub Actions | section 3 |
 
 ---
 
@@ -177,23 +178,29 @@ A record in the shape the article asks for, for the one processing activity:
 subscription's policy; France Central was the cheapest allowed EU region and close to Ireland
 ([design decision 12](docs/design_decisions.md#12-azure-sql-free-offer-france-central)).
 
-**What stops a deployment outside the EU today.**
+**What stops a deployment outside the EU** (control C17).
 
-1. Both infra scripts default to `francecentral`.
-2. The subscription has an *Allowed locations* policy assignment, which rejected `northeurope`
-   with `RequestDisallowedByPolicy` ([deployment guide](docs/deployment_guide.md)). The project does
-   not own that policy and has not checked that it allows EU regions only.
+1. [infra/approved_regions.txt](infra/approved_regions.txt) lists the EU regions the platform may
+   use. `provision.sh` and `seller_api.sh` stop before creating anything if `AZURE_LOCATION` is not
+   in it.
+2. [infra/residency_policy.sh](infra/residency_policy.sh) assigns two built-in Azure Policy
+   definitions on the subscription, *Allowed locations* and *Allowed locations for resource groups*,
+   with the same list, so a deployment from any tool outside the scripts is denied too.
+3. [scripts/access_review.py](scripts/access_review.py) checks every resource's region, the policy
+   assignments, encryption at rest and the database grants, and writes
+   [reports/access_review.md](reports/access_review.md) (control C19).
 
-Neither is a control the project owns or tests: setting `AZURE_LOCATION=eastus` would only be
-stopped if the inherited policy happens to forbid it. Making this an owned and evidenced control is
-gap G6.
+The subscription also inherits an *Allowed resource deployment regions* assignment from its offer.
+The review found that it allows `norwayeast`: Norway is in the EEA but not in the EU, so the
+inherited policy alone would not keep data in the EU. Policy denies new deployments only; it does not
+move existing resources, which is why the review checks those separately.
 
 ---
 
 ## 6. Known gaps and remediation plan
 
 Risk is rated for a platform holding real EU customer data. For the public demo data, the practical
-risk of every item is low. Owner of every item: Data Platform (Newnew-niu). Status of every item: open.
+risk of every item is low. Owner of every item: Data Platform (Newnew-niu). Status: open unless marked closed.
 
 | ID | Gap | Risk | Remediation |
 |---|---|---|---|
@@ -202,13 +209,13 @@ risk of every item is low. Owner of every item: Data Platform (Newnew-niu). Stat
 | G3 | One shared API key: no per-client identity, scopes, rate limits or row-level security | Medium | Entra ID (OAuth) for API callers; per-client scopes; row-level security if per-region access is ever needed |
 | G4 | No retention period and no deletion procedure, so no way to honour an erasure request (Art. 17) | Medium | Define retention per layer; ADLS lifecycle rule for old batches; a procedure that deletes one `customer_unique_id` through every layer, tested by a reconciliation check |
 | G5 | Review free text stored in `raw` and `stg`, used by nothing | Medium | Drop the two columns in staging, or mask them; keep the score only |
-| G6 | EU residency is a default plus an inherited policy, not an owned control | Medium | Own *Allowed locations* policy assignment on the resource groups; a script that lists every resource's region and every database grant, compares them with an approved list and writes a dated access review report |
+| G6 | ~~EU residency is a default plus an inherited policy, not an owned control~~ | – | **Closed 2026-11-26:** C17 and C19 |
 | G7 | Azure SQL auditing and Microsoft Defender for SQL are not enabled | Medium | Enable server auditing to a storage account in the same region; review on a schedule |
 | G8 | SQL firewall allows "Azure services"; storage and SQL have public endpoints | Medium | Managed VNet integration runtime and private endpoints ([design decision 11](docs/design_decisions.md#11-identity-instead-of-secrets) gives the cost trade-off) |
 | G9 | The Container Apps file-share mount uses the storage account key | Medium | Store the key in Key Vault with rotation, or bake a read-only copy of the export into a private image |
 | G10 | One person holds every role (developer, admin, operator, reviewer); no segregation of duties | Medium | In a team: separate admin and developer identities, Privileged Identity Management for the SQL admin, pull-request review by a second person |
 | G11 | Public aggregates have no small-cell suppression (e.g. one state in one month) | Low | Suppress or merge cells below a minimum count before export |
 | G12 | Full data was copied to a developer machine and a GitHub Codespace without a recorded region | Low | Record each copy and its region before use; keep personal data in EU regions only |
-| G13 | Encryption at rest relies on platform defaults that no script checks | Low | Add the TDE and storage encryption state to the G6 report |
+| G13 | ~~Encryption at rest relies on platform defaults that no script checks~~ | – | **Closed 2026-11-26:** checked by C19 |
 | G14 | No lawful basis, privacy notice or DPIA for real customers | Out of scope | Required before processing real personal data |
-| – | ADF's negative path (cannot read `dw` directly) is not tested | Low | Add an `EXECUTE AS` check like the serving reader's |
+| – | ADF's negative path is checked through its grants (C19: exactly the 7 approved), not by trying a forbidden query | Low | Add an `EXECUTE AS` check like the serving reader's |

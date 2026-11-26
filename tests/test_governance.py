@@ -117,7 +117,7 @@ APPROVED = residency.approved_regions()
 
 def test_approved_regions_are_eu_and_include_the_deployed_region():
     assert "francecentral" in APPROVED
-    assert not {"uksouth", "switzerlandnorth", "norwayeast", "eastus"} & set(APPROVED)
+    assert not {"uksouth", "switzerlandnorth", "norwayeast", "norwaywest", "eastus"} & set(APPROVED)
 
 
 def test_regions_check_flags_anything_outside_the_list():
@@ -143,6 +143,10 @@ def test_policy_check_needs_both_enforced_eu_only_assignments():
     assert residency.check_policy([], APPROVED).status == "FAIL"
     leaky = [both[0], _assignment(residency.ALLOWED_RG_LOCATIONS, ["francecentral", "eastus"])]
     assert residency.check_policy(leaky, APPROVED).status == "FAIL"
+    inherited_eea = [_assignment(residency.ALLOWED_DEPLOYMENT_REGIONS, ["francecentral", "norwayeast"],
+                                 name="sys.regionrestriction")]
+    assert residency.check_policy(inherited_eea, APPROVED).status == "FAIL"   # Norway is EEA, not EU
+    assert residency.check_policy(inherited_eea + both, APPROVED).status == "PASS"
     audit_only = [both[0], _assignment(residency.ALLOWED_RG_LOCATIONS, ["francecentral"], mode="DoNotEnforce")]
     assert residency.check_policy(audit_only, APPROVED).status == "FAIL"
 

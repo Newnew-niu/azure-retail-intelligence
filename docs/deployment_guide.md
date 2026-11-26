@@ -44,7 +44,7 @@ bash infra/provision.sh                # idempotent; prints the resource names a
 ```
 
 `provision.sh` creates, in resource group `rg-retail-intel-dev` (France Central by default,
-`AZURE_LOCATION` to change it – check your subscription's *Allowed locations* policy first):
+`AZURE_LOCATION` to change it – it must be listed in `infra/approved_regions.txt`, EU regions only, and allowed by your subscription's policy):
 
 | Resource | Configuration | Cost |
 |---|---|---|

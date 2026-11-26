@@ -14,6 +14,8 @@ APPROVED_REGIONS_FILE = ROOT / "infra" / "approved_regions.txt"
 # Built-in Azure Policy definitions (the same IDs in every tenant).
 ALLOWED_LOCATIONS = "e56962a6-4747-49cd-b67b-bf8b01975c4c"
 ALLOWED_RG_LOCATIONS = "e765b5de-1225-4ba3-bd56-1ac6695af988"
+# "Allowed resource deployment regions": the variant some subscription offers assign (inherited).
+ALLOWED_DEPLOYMENT_REGIONS = "b86dabb9-b578-4d7b-b842-3b45e95769a1"
 # Location of resources that have no region; the built-in policy exempts them as well.
 NON_REGIONAL = {"global"}
 
@@ -70,7 +72,7 @@ def check_policy(assignments: list[dict], approved: list[str]) -> Check:
     rows, good, bad = [], [], []
     for a in assignments:
         definition = (a.get("policyDefinitionId") or "").lower()
-        kind = ("resources" if definition.endswith(ALLOWED_LOCATIONS)
+        kind = ("resources" if definition.endswith((ALLOWED_LOCATIONS, ALLOWED_DEPLOYMENT_REGIONS))
                 else "resource groups" if definition.endswith(ALLOWED_RG_LOCATIONS) else None)
         if kind is None:
             continue

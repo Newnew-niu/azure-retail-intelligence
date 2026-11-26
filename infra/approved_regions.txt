@@ -1,6 +1,8 @@
 # Azure regions approved for this platform's data: regions inside the European Union only.
 # Read by infra/provision.sh, infra/seller_api.sh, infra/residency_policy.sh and governance/.
 # Change it through a pull request; GOVERNANCE.md section 5 explains the rule.
+belgiumcentral
+denmarkeast
 francecentral
 francesouth
 germanywestcentral
@@ -10,5 +12,4 @@ northeurope
 polandcentral
 spaincentral
 swedencentral
-swedensouth
 westeurope

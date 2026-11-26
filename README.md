@@ -12,7 +12,7 @@ dashboard reconciles back to the source data to the cent.
 ![SQL](https://img.shields.io/badge/T--SQL-star_schema-CC2927?logo=microsoftsqlserver&logoColor=white)
 ![Power BI](https://img.shields.io/badge/Power_BI-DAX-F2C811?logo=powerbi&logoColor=black)
 ![PySpark](https://img.shields.io/badge/PySpark-Delta_Lake-E25A1C?logo=apachespark&logoColor=white)
-![Tests](https://img.shields.io/badge/tests-125_passing-2EA44F)
+![Tests](https://img.shields.io/badge/tests-142_passing-2EA44F)
 
 ### 👉 [Open the live interactive dashboard](https://newnew-niu.github.io/azure-retail-intelligence/)
 *Filter by month and state in your browser – no Power BI or sign-in needed.*
@@ -22,7 +22,7 @@ dashboard reconciles back to the source data to the cent.
 
 ![Sales Performance dashboard](docs/images/sales.jpeg)
 
-| 📦 **1.55 M** raw rows from 9 source files | ✅ **125** automated tests, **28** data quality checks per run | 🎯 Reconciled **to the cent** from CSV to dashboard | 💶 Built and run for **under €1** (estimated) |
+| 📦 **1.55 M** raw rows from 9 source files | ✅ **142** automated tests, **28** data quality checks per run | 🎯 Reconciled **to the cent** from CSV to dashboard | 💶 Built and run for **under €1** (estimated) |
 |:-:|:-:|:-:|:-:|
 
 ---
@@ -207,7 +207,7 @@ flowchart LR
 | Reporting | Power BI (DAX, semantic model generated as code); web dashboard (HTML, JavaScript, ECharts) |
 | Serving | FastAPI, Model Context Protocol (MCP), DuckDB, sqlglot, Docker |
 | Web app | React, TypeScript (strict), Vite, React Router, TanStack Query, Recharts, openapi-typescript |
-| Engineering | Git/GitHub, GitHub Actions + Pages, automated tests for the pipeline (125), Spark lakehouse (18), serving layer (375) and web app (65: Vitest, Testing Library, MSW), SQL Server LocalDB for local development |
+| Engineering | Git/GitHub, GitHub Actions + Pages, automated tests for the pipeline (142), Spark lakehouse (18), serving layer (375) and web app (65: Vitest, Testing Library, MSW), SQL Server LocalDB for local development |
 
 ---
 
@@ -260,7 +260,7 @@ cp .env.example .env
 python scripts/download_data.py          # Olist CSVs into data/raw/
 python scripts/deploy_sql.py             # create the local database
 python scripts/run_local_pipeline.py     # validate -> load -> transform -> quality checks
-python -m pytest                         # 125 tests
+python -m pytest                         # 142 tests
 ```
 
 Seller Health, after `python scripts/export_serving_db.py` has written `data/serving.duckdb`:
