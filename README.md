@@ -339,6 +339,7 @@ docs/        design documentation
 | [Serving layer](serving/README.md) | API, MCP server, safety design, what was tested where |
 | [Seller Health decisions](docs/seller_health_decisions.md) | Metric definitions, health signals, API access, front end, hosting |
 | [Data governance](GOVERNANCE.md) | Data classification, access matrix, control register, GDPR mapping, EU residency, known gaps |
+| [EMEA data localisation](docs/emea_data_localisation.md) | Localisation and transfer rules in six jurisdictions, each with its official source |
 | [Deployment guide](docs/deployment_guide.md) | Step-by-step setup and clean-up |
 | [Spark on Fabric](docs/spark_on_fabric.md) | Running the Spark notebook in a Fabric Lakehouse (not yet run there) |
 | [Changelog](CHANGELOG.md) | v1 and v2 |

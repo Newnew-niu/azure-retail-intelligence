@@ -195,6 +195,12 @@ The review found that it allows `norwayeast`: Norway is in the EEA but not in th
 inherited policy alone would not keep data in the EU. Policy denies new deployments only; it does not
 move existing resources, which is why the review checks those separately.
 
+**Data from outside the EU.** The [EMEA data localisation matrix](docs/emea_data_localisation.md)
+compares the EU, UK, Switzerland, Türkiye, Saudi Arabia and Russia, with an official source and a
+verification status for every statement. In short: UK and Swiss data can be held in an EU region;
+Turkish and Saudi data need a documented transfer route; Russian citizens' data must first be stored
+in Russia, so this platform cannot collect it.
+
 ---
 
 ## 6. Known gaps and remediation plan
